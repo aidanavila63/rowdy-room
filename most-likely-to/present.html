@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Presenter · Rowdy Room</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕹️</text></svg>">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="wrap">
+
+  <div class="brandline">
+    <a class="brand" href="/" style="text-decoration:none">ROWDY ROOM <span>// MOST LIKELY TO · PRESENTER</span></a>
+    <div class="grow"></div>
+    <button class="ghost mini" id="btnMusic" title="Background music">♪ Music</button>
+    <button class="ghost mini" id="btnSfx" title="Sound effects">Sound</button>
+    <span class="pill hidden" id="status" data-s="connecting"><i class="dot"></i><span class="txt">Connecting…</span></span>
+  </div>
+
+  <!-- ================= START ================= -->
+  <section id="start" class="screen">
+    <div class="card stack hot" style="text-align:center">
+      <div class="kicker">Presenter</div>
+      <h1>Rowdy Room</h1>
+      <p style="max-width:44ch;margin:6px auto 14px">Open a room, put this screen where everyone can see it, and your friends join from their phones.</p>
+      <button class="big" id="btnCreate">Create new room</button>
+      <button class="ghost hidden" id="btnResume">Resume last room</button>
+      <p class="tiny" id="startHint" style="margin-top:2px"></p>
+    </div>
+  </section>
+
+  <!-- ================= LOBBY ================= -->
+  <section id="lobby" class="screen">
+    <div class="card codebox stack hot">
+      <div class="kicker">Join at</div>
+      <div class="joinurl" id="joinUrl">—</div>
+      <div class="kicker" style="margin-top:10px">Room code</div>
+      <div class="codetiles" id="codeText"></div>
+      <div id="qr"></div>
+    </div>
+
+    <div class="card stack">
+      <div class="row between">
+        <h2>Players <span class="muted" id="pcount">(0)</span></h2>
+        <div class="row tight">
+          <span class="badge hidden" id="roomQBadge">🎤 <span id="roomQCount">0</span> from the room</span>
+          <button class="ghost mini" id="btnRoomQ">See them</button>
+          <button class="ghost mini" id="btnSettings">Settings</button>
+        </div>
+      </div>
+      <div class="players" id="lobbyPlayers"></div>
+      <p class="tiny" id="lobbyHint">Waiting for people to join…</p>
+      <div class="row tight" id="hostPick">
+        <span class="kicker">Host remote</span>
+        <div class="row tight grow" id="hostPickBtns"></div>
+      </div>
+      <p class="tiny" id="hostPickHint"></p>
+      <div class="qlist hidden" id="roomQList"></div>
+      <button class="big" id="btnStart" disabled>Start game</button>
+    </div>
+
+    <div class="card stack hidden" id="settings">
+      <h3>Game settings</h3>
+      <div class="row">
+        <div class="grow">
+          <label class="field" for="rounds">Questions</label>
+          <select id="rounds">
+            <option>5</option><option>10</option><option selected>15</option>
+            <option>20</option><option>25</option><option>30</option><option>40</option>
+          </select>
+        </div>
+        <div class="grow">
+          <label class="field" for="secs">Seconds to vote</label>
+          <select id="secs">
+            <option>10</option><option>15</option><option selected>20</option>
+            <option>30</option><option>45</option><option>60</option>
+            <option>90</option><option>120</option><option value="0">No timer</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <div class="row between" style="margin-bottom:7px">
+          <label class="field" style="margin:0">Question packs</label>
+          <div class="row tight">
+            <button class="ghost mini" id="packAll">All</button>
+            <button class="ghost mini" id="packNone">None</button>
+          </div>
+        </div>
+        <div class="packs" id="packs"></div>
+      </div>
+      <div>
+        <label class="field" for="custom">Your own questions (one per line)</label>
+        <textarea id="custom" placeholder="lose their keys at the party&#10;end up running the group chat"></textarea>
+      </div>
+      <div class="row">
+        <label class="row tiny" style="gap:7px"><input type="checkbox" id="allowAdd" checked> Let players add questions from their phones</label>
+        <label class="row tiny" style="gap:7px"><input type="checkbox" id="showVoters" checked> Show who voted for whom</label>
+        <label class="row tiny" style="gap:7px"><input type="checkbox" id="onlyCustom"> Use only our own questions</label>
+      </div>
+      <div class="row between">
+        <p class="tiny" id="qcount" style="margin:0"></p>
+        <button class="ghost mini" id="btnForget">Reset used questions (<span id="seenCount">0</span>)</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ASK ================= -->
+  <section id="ask" class="screen hidden">
+    <div class="card stack">
+      <div class="row between">
+        <div class="row tight">
+          <span class="qbanner" id="qBanner">—</span>
+          <span class="kicker" id="qProgress">Q1 / 15</span>
+        </div>
+        <div class="count" id="clock">20</div>
+      </div>
+      <div class="kicker">Most likely to…</div>
+      <div class="qbig" id="qText">—</div>
+      <div class="timerbar"><i id="timerFill"></i></div>
+      <div class="row between">
+        <div class="row" style="gap:14px">
+          <div class="kicker"><span id="votedCount">0</span> / <span id="votedTotal">0</span> voted</div>
+          <div class="row tight">
+            <button class="ghost mini" id="btnMinus" title="Shorten this round and the ones after">−5s</button>
+            <button class="ghost mini" id="btnPlus" title="Lengthen this round and the ones after">+5s</button>
+            <button class="ghost mini" id="btnNoTimer" title="Turn the countdown on or off">No timer</button>
+            <span class="tiny" id="secsNow"></span>
+          </div>
+        </div>
+        <div class="row tight">
+          <button class="ghost" id="btnSkip">Skip</button>
+          <button id="btnReveal">Reveal</button>
+        </div>
+      </div>
+      <div class="players" id="askPlayers"></div>
+    </div>
+  </section>
+
+  <!-- ================= REVEAL ================= -->
+  <section id="reveal" class="screen hidden">
+    <div class="card stack">
+      <div class="row tight">
+        <span class="qbanner" id="rBanner">—</span>
+      </div>
+      <div class="kicker">Most likely to…</div>
+      <div class="qbig" id="rText">—</div>
+      <div class="winner" id="rWinner"></div>
+      <div class="bars" id="rBars"></div>
+      <div class="row between" style="margin-top:8px">
+        <div class="kicker" id="rProgress"></div>
+        <button id="btnNext">Next question</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FINAL ================= -->
+  <section id="final" class="screen hidden">
+    <div class="card stack hot">
+      <div class="kicker">Game over</div>
+      <h1 id="finalTitle">Final standings</h1>
+      <div class="podium" id="podium"></div>
+      <div class="lb" id="lb"></div>
+    </div>
+
+    <div class="card stack">
+      <div class="kicker">Awards for the night</div>
+      <div class="awards" id="awards"></div>
+    </div>
+
+    <div class="card">
+      <div class="row tight">
+        <button id="btnAgain">Play again</button>
+        <button class="ghost" id="btnHome">New room</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script src="/bus.js"></script>
+<script src="/questions.js"></script>
+<script src="/ui.js"></script>
+<script src="/audio.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="/presenter.js"></script>
+</body>
+</html>
