@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rowdy Room — Hometown Trivia</title>
+<meta name="description" content="Rowdy Room: Hometown Trivia — write true facts about yourself, then guess who's who.">
+<meta name="theme-color" content="#05040e">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕹️</text></svg>">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .author-watch { text-align: center; padding: 30px 10px; }
+  .author-watch .big-emoji { font-size: 40px; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+<div class="wrap narrow">
+
+  <div class="brandline">
+    <a class="brand" href="/" style="text-decoration:none">ROWDY ROOM <span>// HOMETOWN TRIVIA</span></a>
+    <div class="grow"></div>
+    <button class="ghost mini" id="btnSfx" title="Sound effects">Sound</button>
+    <span class="pill hidden" id="status" data-s="connecting"><i class="dot"></i><span class="txt">Connecting…</span></span>
+  </div>
+
+  <!-- ================= JOIN ================= -->
+  <section id="join" class="screen">
+    <div class="card stack hot">
+      <div class="kicker">Insert coin</div>
+      <h1>Join the game</h1>
+      <p>Grab the 4-character room code off the big screen.</p>
+      <div>
+        <label class="field" for="code">Room code</label>
+        <input type="text" id="code" maxlength="4" autocomplete="off" autocapitalize="characters"
+               spellcheck="false" placeholder="ABCD"
+               style="text-transform:uppercase;letter-spacing:.4em;font-size:28px;font-weight:700;text-align:center;font-family:var(--mono)">
+      </div>
+      <div>
+        <label class="field" for="name">Your name</label>
+        <input type="text" id="name" maxlength="18" autocomplete="off" placeholder="e.g. Aidan">
+      </div>
+      <button class="big" id="btnJoin">Join</button>
+      <p class="tiny">Hosting instead? <a href="present.html">Open the presenter screen</a>.</p>
+    </div>
+  </section>
+
+  <!-- ================= WAIT (also where facts get written) ================= -->
+  <section id="wait" class="screen hidden">
+    <div class="card stack hot">
+      <div class="kicker">Write your own</div>
+      <h1 id="waitHi">You're in!</h1>
+      <p>Add a few true facts about yourself — birthdays, first jobs, pets, embarrassing moments. Nobody sees who wrote what until it's read out.</p>
+      <div class="row tight">
+        <input type="text" id="myFact" class="grow" maxlength="140" autocomplete="off"
+               placeholder="…once got lost in my own neighborhood for two hours" style="flex:1 1 180px">
+        <button id="btnAddFact">Add</button>
+      </div>
+      <div class="qlist" id="myFactList"></div>
+      <p class="tiny" id="factHint"></p>
+    </div>
+    <div class="card stack">
+      <div class="kicker">Lobby</div>
+      <p id="waitMsg">Waiting for the host to start…</p>
+      <div class="players" id="waitPlayers"></div>
+    </div>
+    <div class="card">
+      <button class="ghost" id="btnLeave">Leave game</button>
+    </div>
+  </section>
+
+  <!-- ================= VOTE ================= -->
+  <section id="vote" class="screen hidden">
+    <div class="card stack">
+      <div class="row between">
+        <span class="qbanner" id="vBanner">—</span>
+        <div class="count" id="vClock" style="font-size:26px"></div>
+      </div>
+
+      <div id="voteBody">
+        <div class="kicker">True story…</div>
+        <div class="qbig" id="vText" style="font-size:clamp(22px,6.4vw,32px)">—</div>
+        <div class="timerbar"><i id="vFill"></i></div>
+        <div class="votegrid" id="vGrid"></div>
+        <p class="tiny" id="vHint">Tap whoever it's about.</p>
+      </div>
+
+      <div id="authorBody" class="author-watch hidden">
+        <div class="big-emoji">👀</div>
+        <p>Everyone's guessing whose fact this is — it's <b>yours</b>.</p>
+        <p class="tiny">Sit back and see who catches it.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ROUND RESULT ================= -->
+  <section id="result" class="screen hidden">
+    <div class="card stack">
+      <span class="qbanner" id="rBanner">—</span>
+      <div class="kicker">True story…</div>
+      <div class="qbig" id="rqText" style="font-size:clamp(20px,5.4vw,28px)">—</div>
+      <div class="winner" id="rWin" style="font-size:clamp(17px,4vw,22px)"></div>
+      <div class="bars" id="rBars"></div>
+      <p class="tiny" id="rWait">Waiting for the host…</p>
+    </div>
+  </section>
+
+  <!-- ================= DONE ================= -->
+  <section id="done" class="screen hidden">
+    <div class="card stack hot">
+      <div class="kicker">Game over</div>
+      <h1>Final standings</h1>
+      <div class="podium" id="podium"></div>
+      <div class="lb" id="lb"></div>
+    </div>
+    <div class="card stack">
+      <div class="kicker">Awards for the night</div>
+      <div class="awards" id="awards"></div>
+    </div>
+  </section>
+
+</div>
+
+<div class="hostbar hidden" id="hostBar">
+  <span class="hlbl">Host</span>
+  <div class="row tight grow" id="hostBtns"></div>
+</div>
+
+<script src="/bus.js"></script>
+<script src="/ui.js"></script>
+<script src="/audio.js"></script>
+<script src="/hmt-player.js"></script>
+</body>
+</html>
