@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rowdy Room — Speed Sketch</title>
+<meta name="description" content="Rowdy Room: Speed Sketch — one phone draws a secret word live, everyone else free-types guesses.">
+<meta name="theme-color" content="#05040e">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕹️</text></svg>">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .ss-canvas-wrap {
+    position: relative; border-radius: 10px; overflow: hidden; background: #fff;
+    aspect-ratio: 300/180; touch-action: none; box-shadow: 0 0 0 1px var(--line);
+  }
+  #ssCanvas { width: 100%; height: 100%; display: block; touch-action: none; }
+  .ss-swatches { display: flex; gap: 10px; margin: 12px 0; }
+  .ss-swatch { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--line); padding: 0; box-shadow: none; }
+  .ss-swatch.on { border-color: #fff; box-shadow: 0 0 0 2px var(--cyan); }
+  .ss-liveview {
+    width: 100%; aspect-ratio: 300/180; background: #fff; border-radius: 8px; overflow: hidden;
+    margin: 6px 0; box-shadow: 0 0 0 1px var(--line);
+  }
+  .ss-wordbanner {
+    text-align: center; font-family: var(--mono); font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; font-size: clamp(20px,5.5vw,28px); color: var(--gold);
+    text-shadow: 0 0 20px rgba(255,210,63,0.5); padding: 10px; border: 1px solid rgba(255,210,63,0.35);
+    border-radius: 8px; background: rgba(255,210,63,0.07); margin-bottom: 10px;
+  }
+  .ss-wordbig { text-align: center; font-family: var(--mono); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; font-size: clamp(22px,6vw,30px); color: var(--gold); text-shadow: 0 0 20px rgba(255,210,63,0.5); margin: 8px 0; }
+  .ss-guessdone { text-align: center; padding: 20px 10px; font-weight: 700; color: var(--lime); }
+  #ssGuessIn.shake { animation: ss-shake 0.3s; border-color: var(--magenta) !important; }
+  @keyframes ss-shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+</style>
+</head>
+<body>
+<div class="wrap narrow">
+
+  <div class="brandline">
+    <a class="brand" href="/" style="text-decoration:none">ROWDY ROOM <span>// SPEED SKETCH</span></a>
+    <div class="grow"></div>
+    <button class="ghost mini" id="btnSfx" title="Sound effects">Sound</button>
+    <span class="pill hidden" id="status" data-s="connecting"><i class="dot"></i><span class="txt">Connecting…</span></span>
+  </div>
+
+  <!-- ================= JOIN ================= -->
+  <section id="join" class="screen">
+    <div class="card stack hot">
+      <div class="kicker">Insert coin</div>
+      <h1>Join the game</h1>
+      <p>Grab the 4-character room code off the big screen.</p>
+      <div>
+        <label class="field" for="code">Room code</label>
+        <input type="text" id="code" maxlength="4" autocomplete="off" autocapitalize="characters"
+               spellcheck="false" placeholder="ABCD"
+               style="text-transform:uppercase;letter-spacing:.4em;font-size:28px;font-weight:700;text-align:center;font-family:var(--mono)">
+      </div>
+      <div>
+        <label class="field" for="name">Your name</label>
+        <input type="text" id="name" maxlength="18" autocomplete="off" placeholder="e.g. Aidan">
+      </div>
+      <button class="big" id="btnJoin">Join</button>
+      <p class="tiny">Hosting instead? <a href="present.html">Open the presenter screen</a>.</p>
+    </div>
+  </section>
+
+  <!-- ================= WAIT ================= -->
+  <section id="wait" class="screen hidden">
+    <div class="card stack hot">
+      <div class="kicker">Lobby</div>
+      <h1 id="waitHi">You're in!</h1>
+      <p id="waitMsg">Waiting for the host to start…</p>
+      <div class="players" id="waitPlayers"></div>
+    </div>
+    <div class="card">
+      <button class="ghost" id="btnLeave">Leave game</button>
+    </div>
+  </section>
+
+  <!-- ================= DRAW ================= -->
+  <section id="draw" class="screen hidden">
+    <div class="card stack">
+      <div class="row between">
+        <span class="qbanner" id="dBanner">—</span>
+        <div class="count" id="dClock" style="font-size:26px"></div>
+      </div>
+      <div class="timerbar"><i id="dFill"></i></div>
+
+      <div id="ssArtistUI" class="hidden">
+        <div class="ss-wordbanner" id="ssWordBanner">Getting your word…</div>
+        <div class="ss-canvas-wrap"><canvas id="ssCanvas"></canvas></div>
+        <div class="ss-swatches" id="ssSwatches"></div>
+        <div class="row tight">
+          <button class="ghost" id="btnUndo">Undo</button>
+          <button class="ghost" id="btnClear">Clear</button>
+        </div>
+        <p class="tiny"><span id="dCorrect">0</span> / <span id="dTotal">0</span> have guessed it so far</p>
+      </div>
+
+      <div id="ssGuesserUI" class="hidden">
+        <div class="ss-liveview" id="ssLiveView"></div>
+        <div id="ssGuessForm">
+          <div class="gb-input-row" style="display:flex;gap:10px;margin:10px 0">
+            <input type="text" id="ssGuessIn" placeholder="Type your guess…" autocomplete="off" style="flex:1 1 auto;min-width:0">
+            <button id="btnGuess" style="flex:none">Guess</button>
+          </div>
+        </div>
+        <div id="ssGuessDone" class="ss-guessdone hidden">✓ Got it! Waiting for the others…</div>
+        <p class="tiny"><span id="gCorrect">0</span> / <span id="gTotal">0</span> have guessed it so far</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= REVEAL ================= -->
+  <section id="reveal" class="screen hidden">
+    <div class="card stack">
+      <span class="qbanner" id="rBanner">—</span>
+      <div class="ss-wordbig" id="rWord">—</div>
+      <div class="ss-liveview" id="ssRevealView"></div>
+      <p class="tiny" id="rArtistLine" style="text-align:center"></p>
+      <div class="dc-my-outcome" id="rMyOutcome" style="text-align:center;padding:10px;border-radius:10px;margin:4px 0 10px;font-weight:700"></div>
+      <div class="bars" id="rBars"></div>
+    </div>
+  </section>
+
+  <!-- ================= FINAL ================= -->
+  <section id="final" class="screen hidden">
+    <div class="card stack hot">
+      <div class="kicker">Game over</div>
+      <h1>Final standings</h1>
+      <div class="podium" id="podium"></div>
+      <div class="lb" id="lb"></div>
+    </div>
+    <div class="card stack">
+      <div class="kicker">Awards for the night</div>
+      <div class="awards" id="awards"></div>
+    </div>
+  </section>
+
+</div>
+
+<div class="hostbar hidden" id="hostBar">
+  <span class="hlbl">Host</span>
+  <div class="row tight grow" id="hostBtns"></div>
+</div>
+
+<script src="/bus.js"></script>
+<script src="/ui.js"></script>
+<script src="/audio.js"></script>
+<script src="/ss.js"></script>
+<script src="/ss-player.js"></script>
+</body>
+</html>
