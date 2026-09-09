@@ -10,12 +10,84 @@
 <link rel="stylesheet" href="/styles.css">
 <style>
   /* ---- hub-specific additions (layered on top of styles.css's tokens) ---- */
-  .hero { text-align: center; padding: 56px 0 44px; }
-  .hero .kicker { display: block; margin-bottom: 14px; }
-  .hero h1 {
-    font-size: clamp(44px, 10vw, 92px);
-    text-shadow: 0 0 40px rgba(34, 230, 255, 0.35), 0 0 100px rgba(157, 107, 255, 0.18);
+  .hero { text-align: center; padding: 48px 0 44px; }
+  .hero .kicker { display: block; margin-bottom: 4px; }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
   }
+
+  .neon-logo {
+    position: relative;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 6px auto 10px;
+    padding: 26px 16px 18px;
+    line-height: 1;
+  }
+  .neon-burst {
+    position: absolute;
+    inset: -8% -10%;
+    width: 120%;
+    height: auto;
+    z-index: 0;
+    opacity: 0.85;
+    filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.3));
+    pointer-events: none;
+  }
+  .neon-rowdy, .neon-room { position: relative; z-index: 1; display: block; }
+  .neon-rowdy {
+    font-family: 'Permanent Marker', cursive;
+    font-size: clamp(46px, 11vw, 100px);
+    color: #ff5cb0;
+    text-shadow:
+      0 0 8px #ff2d95,
+      0 0 22px #ff2d95,
+      0 0 46px rgba(255, 45, 149, 0.65),
+      0 0 90px rgba(255, 45, 149, 0.35);
+    transform: rotate(-3deg);
+    margin-bottom: -8px;
+  }
+  .neon-room {
+    font-family: 'Bungee', var(--sans);
+    font-size: clamp(40px, 10vw, 92px);
+    letter-spacing: 0.04em;
+    color: #bfe9ff;
+    text-shadow:
+      0 0 8px #22e6ff,
+      0 0 22px #22e6ff,
+      0 0 46px rgba(34, 230, 255, 0.65),
+      0 0 90px rgba(34, 230, 255, 0.35);
+  }
+  .neon-reflect {
+    position: absolute;
+    left: 0; right: 0; top: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transform: scaleY(-1);
+    opacity: 0.22;
+    filter: blur(2px);
+    -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent 65%);
+    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent 65%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  @keyframes neon-flicker {
+    0%, 91%, 100% { filter: brightness(1); }
+    93% { filter: brightness(0.82); }
+    94% { filter: brightness(1); }
+    96% { filter: brightness(0.88); }
+    97% { filter: brightness(1); }
+  }
+  .neon-rowdy, .neon-room { animation: neon-flicker 6s infinite; }
+  .neon-room { animation-delay: 0.4s; }
+  @media (prefers-reduced-motion: reduce) {
+    .neon-rowdy, .neon-room { animation: none; }
+  }
+
   .hero p.lede {
     max-width: 46ch;
     margin: 16px auto 30px;
@@ -30,13 +102,15 @@
   .section-head .kicker { white-space: nowrap; }
   .section-head .rule { flex: 1 1 auto; height: 1px; background: linear-gradient(90deg, var(--line), transparent); }
 
-  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin: 18px 0 22px; }
-  .step .num { font-family: var(--mono); font-weight: 700; color: var(--cyan); font-size: 13px; letter-spacing: 0.1em; }
-  .step p { margin: 4px 0 0; font-size: 14px; }
-
   .live-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
   .live-grid .card.hot { margin-top: 0; display: flex; flex-direction: column; }
   .live-grid .card.hot p { flex: 1 1 auto; }
+  .live-grid .card.hot p.hook {
+    flex: none;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 2px;
+  }
 
   .games-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
   .games-grid .card { margin-top: 0; }
@@ -57,13 +131,43 @@
 <div class="wrap">
 
   <div class="brandline">
-    <span class="brand">ROWDY ROOM</span>
+    <span class="brand"><span class="brand-rowdy">ROWDY</span> <span class="brand-room">ROOM</span></span>
   </div>
 
   <!-- ================= HERO ================= -->
   <section class="hero">
     <span class="kicker">Party games, live</span>
-    <h1>ROWDY ROOM</h1>
+    <h1 class="neon-logo">
+      <span class="sr-only">Rowdy Room</span>
+      <svg class="neon-burst" viewBox="0 0 800 500" aria-hidden="true" focusable="false">
+        <g fill="none" stroke-linecap="round">
+          <line x1="450" y1="230" x2="620" y2="120" stroke="#ff2d95" stroke-width="5"/>
+          <line x1="460" y1="255" x2="610" y2="340" stroke="#22e6ff" stroke-width="5"/>
+          <line x1="445" y1="280" x2="560" y2="410" stroke="#b6ff3b" stroke-width="4"/>
+          <line x1="420" y1="295" x2="460" y2="430" stroke="#ffd23f" stroke-width="4"/>
+          <line x1="385" y1="300" x2="340" y2="435" stroke="#9d6bff" stroke-width="5"/>
+          <line x1="355" y1="290" x2="230" y2="395" stroke="#ff2d95" stroke-width="4"/>
+          <line x1="340" y1="270" x2="170" y2="300" stroke="#22e6ff" stroke-width="5"/>
+          <line x1="345" y1="245" x2="175" y2="190" stroke="#b6ff3b" stroke-width="4"/>
+          <line x1="365" y1="225" x2="250" y2="100" stroke="#ffd23f" stroke-width="4"/>
+          <line x1="395" y1="215" x2="360" y2="70" stroke="#9d6bff" stroke-width="5"/>
+          <line x1="425" y1="220" x2="470" y2="65" stroke="#ff2d95" stroke-width="4"/>
+          <line x1="450" y1="235" x2="570" y2="110" stroke="#22e6ff" stroke-width="4"/>
+        </g>
+        <g fill="none" stroke-width="3">
+          <rect x="586" y="138" width="20" height="20" rx="3" stroke="#b6ff3b" transform="rotate(18 596 148)"/>
+          <circle cx="205" cy="335" r="11" stroke="#ffd23f"/>
+          <polygon points="500,398 516,424 484,424" stroke="#22e6ff"/>
+          <rect x="288" y="98" width="16" height="16" rx="3" stroke="#ff2d95" transform="rotate(-12 296 106)"/>
+        </g>
+      </svg>
+      <span class="neon-rowdy" aria-hidden="true">ROWDY</span>
+      <span class="neon-room" aria-hidden="true">ROOM</span>
+      <span class="neon-reflect" aria-hidden="true">
+        <span class="neon-rowdy">ROWDY</span>
+        <span class="neon-room">ROOM</span>
+      </span>
+    </h1>
     <p class="lede">Put the big screen where everyone can see it, get the phones out, and play. No app to install, no account — just a room code.</p>
     <div class="ctas">
       <button class="big" onclick="location.href='/most-likely-to/present.html'">▶ Host a game</button>
@@ -83,12 +187,8 @@
         <span class="game-emoji">🎉</span>
         <h2>Most Likely To</h2>
       </div>
-      <p>Everyone votes on who in the room is most likely to do what. 12 packs, 500+ prompts, chiptune score included — chaos guaranteed.</p>
-      <div class="steps">
-        <div class="step"><span class="num">01</span><p>Open the presenter screen on your TV or laptop</p></div>
-        <div class="step"><span class="num">02</span><p>Everyone scans the code or types it in on their phone</p></div>
-        <div class="step"><span class="num">03</span><p>Vote each round, watch the results land live</p></div>
-      </div>
+      <p class="hook">The question every friend group already argues about — now it's official.</p>
+      <p>A prompt drops on the big screen — who's most likely to fake their own death, marry into royalty, end up running a cult — and everyone votes at once. The board lights up with who got picked and by how much, and the score climbs from there.</p>
       <div class="row tight">
         <button class="big" style="width:auto;padding-left:30px;padding-right:30px" onclick="location.href='/most-likely-to/present.html'">Play now</button>
         <button class="ghost" onclick="location.href='/most-likely-to/'">I have a code</button>
@@ -100,12 +200,8 @@
         <span class="game-emoji">🌶️</span>
         <h2>Would You Rather</h2>
       </div>
-      <p>Two options, one vote. Whatever the room is more reluctant about survives to face something even bigger next round — five ladders that escalate all night.</p>
-      <div class="steps">
-        <div class="step"><span class="num">01</span><p>Open the presenter screen on your TV or laptop</p></div>
-        <div class="step"><span class="num">02</span><p>Everyone scans the code or types it in on their phone</p></div>
-        <div class="step"><span class="num">03</span><p>Vote each round and watch the dare escalate</p></div>
-      </div>
+      <p class="hook">Every question gets a little worse than the last. On purpose.</p>
+      <p>Two options, one vote each round. Whichever side the room favors less becomes the new baseline, so the dares ratchet up ladder by ladder until someone's stuck picking the lesser evil of something genuinely unhinged.</p>
       <div class="row tight">
         <button class="big" style="width:auto;padding-left:30px;padding-right:30px" onclick="location.href='/would-you-rather/present.html'">Play now</button>
         <button class="ghost" onclick="location.href='/would-you-rather/'">I have a code</button>
@@ -117,12 +213,8 @@
         <span class="game-emoji">🤥</span>
         <h2>Two Truths and a Room</h2>
       </div>
-      <p>Everyone writes one true thing and one convincing lie about themselves. Each round, the room votes on which is which — fool your friends, or get fooled.</p>
-      <div class="steps">
-        <div class="step"><span class="num">01</span><p>Open the presenter screen on your TV or laptop</p></div>
-        <div class="step"><span class="num">02</span><p>Everyone joins and writes their two statements</p></div>
-        <div class="step"><span class="num">03</span><p>Vote each round on who's lying, and to who</p></div>
-      </div>
+      <p class="hook">Everyone's a liar tonight. Vote to catch whose lie is whose.</p>
+      <p>Before playing, everyone quietly writes one true fact and one convincing lie about themselves. Each round surfaces one player's pair, and the room votes on which is the lie — score for spotting it, or for fooling everyone who got it wrong.</p>
       <div class="row tight">
         <button class="big" style="width:auto;padding-left:30px;padding-right:30px" onclick="location.href='/two-truths/present.html'">Play now</button>
         <button class="ghost" onclick="location.href='/two-truths/'">I have a code</button>
@@ -134,12 +226,8 @@
         <span class="game-emoji">⛰️</span>
         <h2>Hill to Die On</h2>
       </div>
-      <p>A spicy statement, a slider from disagree to agree. Whoever lands furthest apart get 30 seconds to argue it out — then the room votes again.</p>
-      <div class="steps">
-        <div class="step"><span class="num">01</span><p>Open the presenter screen on your TV or laptop</p></div>
-        <div class="step"><span class="num">02</span><p>Everyone scans the code or types it in on their phone</p></div>
-        <div class="step"><span class="num">03</span><p>Vote, watch two people argue it out, vote again</p></div>
-      </div>
+      <p class="hook">Pick a side. Then defend it, out loud, while everyone watches to see if you cave.</p>
+      <p>A hot take drops and everyone slides from disagree to agree along a line. The two people furthest apart get thirty seconds to argue their case live, then the room votes again to see who actually swayed anybody.</p>
       <div class="row tight">
         <button class="big" style="width:auto;padding-left:30px;padding-right:30px" onclick="location.href='/hill-to-die-on/present.html'">Play now</button>
         <button class="ghost" onclick="location.href='/hill-to-die-on/'">I have a code</button>
@@ -151,12 +239,8 @@
         <span class="game-emoji">🏠</span>
         <h2>Hometown Trivia</h2>
       </div>
-      <p>Everyone writes a few true facts about themselves. Each round, one gets read out anonymously — guess who it's actually about.</p>
-      <div class="steps">
-        <div class="step"><span class="num">01</span><p>Open the presenter screen on your TV or laptop</p></div>
-        <div class="step"><span class="num">02</span><p>Everyone joins and writes a few true facts</p></div>
-        <div class="step"><span class="num">03</span><p>Guess who each anonymous fact belongs to</p></div>
-      </div>
+      <p class="hook">How well do you actually know these people?</p>
+      <p>Everyone quietly writes a few true facts about themselves at the start. Each round, one gets read out with no name attached, and the room has to guess who it belongs to — the author scores every time they stump someone.</p>
       <div class="row tight">
         <button class="big" style="width:auto;padding-left:30px;padding-right:30px" onclick="location.href='/hometown-trivia/present.html'">Play now</button>
         <button class="ghost" onclick="location.href='/hometown-trivia/'">I have a code</button>
@@ -168,12 +252,8 @@
         <span class="game-emoji">🎯</span>
         <h2>Confidently Wrong</h2>
       </div>
-      <p>Real trivia, but every answer comes with a wager. Guess right and it pays off — guess wrong and it costs you just as much.</p>
-      <div class="steps">
-        <div class="step"><span class="num">01</span><p>Open the presenter screen on your TV or laptop</p></div>
-        <div class="step"><span class="num">02</span><p>Everyone scans the code or types it in on their phone</p></div>
-        <div class="step"><span class="num">03</span><p>Pick an answer, bet on how sure you are, watch the score swing</p></div>
-      </div>
+      <p class="hook">Trivia with a wager attached to your ego.</p>
+      <p>Standard multiple-choice trivia, except before locking in your answer you also bet ×1, ×2, or ×3 on how sure you are. Nail it and the wager pays off; miss it and it costs you the same amount — swagger is a real risk here.</p>
       <div class="row tight">
         <button class="big" style="width:auto;padding-left:30px;padding-right:30px" onclick="location.href='/confidently-wrong/present.html'">Play now</button>
         <button class="ghost" onclick="location.href='/confidently-wrong/'">I have a code</button>
@@ -185,12 +265,8 @@
         <span class="game-emoji">🧠</span>
         <h2>Group Brain</h2>
       </div>
-      <p>A numeric question hits the big screen. Everyone types their own guess — no buzzer, no single right answer, just how close you land.</p>
-      <div class="steps">
-        <div class="step"><span class="num">01</span><p>Open the presenter screen on your TV or laptop</p></div>
-        <div class="step"><span class="num">02</span><p>Everyone scans the code or types it in on their phone</p></div>
-        <div class="step"><span class="num">03</span><p>Type a number, lock it in, see who got closest</p></div>
-      </div>
+      <p class="hook">No buzzer. No first-right winner. Just vibes and arithmetic.</p>
+      <p>A numeric question drops on the big screen — how many bones in a hand, how tall is Everest — and everyone types their own guess. Points scale with how close you land, and the room's average gets revealed too, because the crowd is sometimes smarter than any one guesser.</p>
       <div class="row tight">
         <button class="big" style="width:auto;padding-left:30px;padding-right:30px" onclick="location.href='/group-brain/present.html'">Play now</button>
         <button class="ghost" onclick="location.href='/group-brain/'">I have a code</button>
@@ -202,12 +278,8 @@
         <span class="game-emoji">🎨</span>
         <h2>Doodle Chain</h2>
       </div>
-      <p>Exquisite-corpse style: one phone draws a prompt, the next sees only the drawing and captions it — telescoping through the whole room. No points, just the reveal.</p>
-      <div class="steps">
-        <div class="step"><span class="num">01</span><p>Open the presenter screen on your TV or laptop</p></div>
-        <div class="step"><span class="num">02</span><p>Everyone scans the code or types it in on their phone</p></div>
-        <div class="step"><span class="num">03</span><p>Draw, caption, then watch every chain unfurl</p></div>
-      </div>
+      <p class="hook">Telephone, but everyone's terrible at drawing.</p>
+      <p>One phone draws a prompt, the next phone sees only that drawing and has to caption it, the next sees only the caption and draws that — on and on around the whole room. No scoring here; once every chain unravels on the big screen, the room just votes for its favorite.</p>
       <div class="row tight">
         <button class="big" style="width:auto;padding-left:30px;padding-right:30px" onclick="location.href='/doodle-chain/present.html'">Play now</button>
         <button class="ghost" onclick="location.href='/doodle-chain/'">I have a code</button>
@@ -219,15 +291,24 @@
         <span class="game-emoji">✏️</span>
         <h2>Speed Sketch</h2>
       </div>
-      <p>One phone gets a secret word and draws it live against the clock while everyone else free-types guesses. Faster correct guesses score more; the artist scores by how many people read it.</p>
-      <div class="steps">
-        <div class="step"><span class="num">01</span><p>Open the presenter screen on your TV or laptop</p></div>
-        <div class="step"><span class="num">02</span><p>Everyone scans the code or types it in on their phone</p></div>
-        <div class="step"><span class="num">03</span><p>Watch the drawing appear live and race to guess it</p></div>
-      </div>
+      <p class="hook">The picture doesn't wait for the end — everyone watches it happen live.</p>
+      <p>One player gets a secret word and starts drawing against the clock, and every stroke streams straight to everyone else's phone as it happens. The rest of the room free-types guesses in real time — the faster you're right, the more it's worth, and the artist's score depends on how many people actually read it.</p>
       <div class="row tight">
         <button class="big" style="width:auto;padding-left:30px;padding-right:30px" onclick="location.href='/speed-sketch/present.html'">Play now</button>
         <button class="ghost" onclick="location.href='/speed-sketch/'">I have a code</button>
+      </div>
+    </div>
+
+    <div class="card hot">
+      <div class="row tight" style="margin-bottom:4px">
+        <span class="game-emoji">🤐</span>
+        <h2>Taboo Chain</h2>
+      </div>
+      <p class="hook">Describe it without saying the words you'd normally reach for first.</p>
+      <p>One phone gets a secret phrase plus three words it can't use, then races the clock typing clues while the room free-types guesses from what comes through. Slip and use a banned word and the clue gets blocked before anyone even sees it — no do-overs, just try again.</p>
+      <div class="row tight">
+        <button class="big" style="width:auto;padding-left:30px;padding-right:30px" onclick="location.href='/taboo-chain/present.html'">Play now</button>
+        <button class="ghost" onclick="location.href='/taboo-chain/'">I have a code</button>
       </div>
     </div>
   </div>

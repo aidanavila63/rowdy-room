@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Bungee&display=swap');
+
 /* ============================================================
    MOST LIKELY TO — neon arcade
    ============================================================ */
@@ -103,6 +105,26 @@ a { color: var(--cyan); }
   text-shadow: 0 0 14px rgba(34, 230, 255, 0.55);
 }
 .brand span { color: var(--dimmer); text-shadow: none; }
+
+/* ---- neon marquee brand mark (Rowdy in pink marker script, Room in a
+   glowing blue block face) — shared by the header on every page ---- */
+.brand .brand-rowdy {
+  font-family: 'Permanent Marker', cursive;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #ff5cb0;
+  text-shadow: 0 0 6px rgba(255, 45, 149, 0.85), 0 0 14px rgba(255, 45, 149, 0.5);
+  font-size: 1.3em;
+}
+.brand .brand-room {
+  font-family: 'Bungee', var(--sans);
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  text-transform: none;
+  color: #bfe9ff;
+  text-shadow: 0 0 6px rgba(34, 230, 255, 0.85), 0 0 14px rgba(34, 230, 255, 0.5);
+}
 
 /* ---- panels ---- */
 .card {
