@@ -106,9 +106,9 @@
       document.body.appendChild(t);
     }
     t.textContent = msg;
-    t.style.display = 'block';
+    t.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { t.style.display = 'none'; }, 2600);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2600);
   }
 
   function wireStatus(bus, node) {

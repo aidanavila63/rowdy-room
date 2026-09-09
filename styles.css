@@ -155,6 +155,7 @@ a { color: var(--cyan); }
     0 0 0 1px rgba(0, 0, 0, 0.5),
     0 0 34px rgba(34, 230, 255, 0.07),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .card::before {
   content: "";
@@ -215,10 +216,10 @@ button {
   padding: 12px 20px;
   cursor: pointer;
   box-shadow: 0 0 20px rgba(34, 230, 255, 0.4);
-  transition: transform 0.07s ease, box-shadow 0.18s ease, background 0.18s ease;
+  transition: transform 0.16s cubic-bezier(0.34, 1.4, 0.4, 1), box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
 }
-button:hover { box-shadow: 0 0 30px rgba(34, 230, 255, 0.65); }
-button:active { transform: translateY(1px); }
+button:hover:not(:disabled) { box-shadow: 0 0 30px rgba(34, 230, 255, 0.65); transform: translateY(-1px); }
+button:active:not(:disabled) { transform: translateY(1px) scale(0.98); transition-duration: 0.08s; }
 button:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
 button.ghost {
   background: transparent;
@@ -226,7 +227,7 @@ button.ghost {
   border-color: var(--line);
   box-shadow: none;
 }
-button.ghost:hover { border-color: var(--cyan); color: var(--cyan); box-shadow: 0 0 16px rgba(34, 230, 255, 0.22); }
+button.ghost:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); box-shadow: 0 0 16px rgba(34, 230, 255, 0.22); }
 button.big { padding: 17px 28px; font-size: 17px; width: 100%; letter-spacing: 0.16em; }
 button.mini { padding: 6px 11px; font-size: 11.5px; letter-spacing: 0.08em; }
 button.off { opacity: 0.38; text-decoration: line-through; }
@@ -248,10 +249,14 @@ button.danger { color: var(--magenta); border-color: rgba(255, 45, 149, 0.4); ba
   border: 1px solid var(--line);
   color: var(--dim);
 }
-.dot { width: 7px; height: 7px; border-radius: 50%; background: #667; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: #667; transition: background 0.25s ease, box-shadow 0.25s ease; }
 .pill[data-s="online"] .dot { background: var(--lime); box-shadow: 0 0 9px var(--lime); }
-.pill[data-s="connecting"] .dot, .pill[data-s="retrying"] .dot { background: var(--gold); box-shadow: 0 0 9px var(--gold); }
+.pill[data-s="connecting"] .dot, .pill[data-s="retrying"] .dot {
+  background: var(--gold); box-shadow: 0 0 9px var(--gold);
+  animation: dot-pulse 1s ease-in-out infinite;
+}
 .pill[data-s="offline"] .dot { background: var(--magenta); box-shadow: 0 0 9px var(--magenta); }
+@keyframes dot-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
 /* ---- room code ---- */
 .codebox { text-align: center; }
@@ -277,7 +282,18 @@ button.danger { color: var(--magenta); border-color: rgba(255, 45, 149, 0.4); ba
   color: #fff;
   text-shadow: 0 0 10px var(--cyan), 0 0 34px rgba(34, 230, 255, 0.7);
   box-shadow: 0 0 26px rgba(34, 230, 255, 0.16), inset 0 0 22px rgba(34, 230, 255, 0.08);
+  animation: codechar-pop 0.5s cubic-bezier(0.16, 0.84, 0.28, 1) both;
 }
+@keyframes codechar-pop {
+  from { opacity: 0; transform: translateY(14px) scale(0.85); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.codechar:nth-child(1) { animation-delay: 0s; }
+.codechar:nth-child(2) { animation-delay: 0.06s; }
+.codechar:nth-child(3) { animation-delay: 0.12s; }
+.codechar:nth-child(4) { animation-delay: 0.18s; }
+.codechar:nth-child(5) { animation-delay: 0.24s; }
+.codechar:nth-child(6) { animation-delay: 0.3s; }
 #qr { display: flex; justify-content: center; }
 #qr img, #qr canvas {
   border-radius: 6px; background: #fff; padding: 8px;
@@ -296,6 +312,7 @@ button.danger { color: var(--magenta); border-color: rgba(255, 45, 149, 0.4); ba
   border: 1px solid var(--line);
   font-weight: 700;
   font-size: 14px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 .chip.voted { border-color: var(--lime); box-shadow: 0 0 14px rgba(182, 255, 59, 0.28); }
 .av {
@@ -322,8 +339,9 @@ button.danger { color: var(--magenta); border-color: rgba(255, 45, 149, 0.4); ba
   text-transform: none;
   text-align: left;
   box-shadow: none;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
 }
-.pack .em { font-size: 17px; line-height: 1; filter: grayscale(1); opacity: 0.45; }
+.pack .em { font-size: 17px; line-height: 1; filter: grayscale(1); opacity: 0.45; transition: filter 0.2s ease, opacity 0.2s ease; }
 .pack .n { margin-left: auto; font-family: var(--mono); font-size: 11px; opacity: 0.5; }
 .pack[aria-pressed="true"] {
   color: var(--ink);
@@ -392,6 +410,7 @@ button.danger { color: var(--magenta); border-color: rgba(255, 45, 149, 0.4); ba
   text-align: left;
   min-height: 70px;
   box-shadow: none;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
 }
 .vote .av { width: 34px; height: 34px; font-size: 14px; }
 .vote[aria-pressed="true"] {
@@ -465,6 +484,7 @@ button.danger { color: var(--magenta); border-color: rgba(255, 45, 149, 0.4); ba
   border: 1px solid color-mix(in srgb, var(--ac, var(--gold)) 42%, transparent);
   background: linear-gradient(140deg, color-mix(in srgb, var(--ac, var(--gold)) 13%, transparent), rgba(3, 6, 20, 0.6));
   box-shadow: 0 0 22px color-mix(in srgb, var(--ac, var(--gold)) 16%, transparent);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .award .t {
   font-family: var(--mono); font-size: 11.5px; font-weight: 700;
@@ -484,6 +504,7 @@ button.danger { color: var(--magenta); border-color: rgba(255, 45, 149, 0.4); ba
   background: rgba(255, 255, 255, 0.035);
   border: 1px solid var(--line);
   font-weight: 800;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 .lbrow .rank { font-family: var(--mono); font-size: 17px; color: var(--dimmer); text-align: center; }
 .lbrow.top {
@@ -503,6 +524,7 @@ button.danger { color: var(--magenta); border-color: rgba(255, 45, 149, 0.4); ba
   background: rgba(255, 255, 255, 0.035);
   border: 1px solid var(--line);
   font-size: 13.5px;
+  transition: border-color 0.2s ease, background 0.2s ease;
 }
 .qitem span { flex: 1 1 auto; }
 .qitem button { padding: 3px 9px; font-size: 11px; }
@@ -514,6 +536,7 @@ button.danger { color: var(--magenta); border-color: rgba(255, 45, 149, 0.4); ba
   color: var(--gold);
   border: 1px solid rgba(255, 210, 63, 0.4);
   background: rgba(255, 210, 63, 0.08);
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
 
 /* the host's phone: a remote control pinned to the bottom of their screen */
@@ -547,9 +570,16 @@ body.has-host .wrap { padding-bottom: 96px; }
 
 .hidden { display: none !important; }
 
+/* ---- screen transitions (fires only on real show()/.hidden toggles, never on re-render) ---- */
+.screen:not(.hidden) { animation: screen-enter 0.45s cubic-bezier(0.16, 0.84, 0.28, 1) both; }
+@keyframes screen-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .toast {
   position: fixed; left: 50%; bottom: 22px;
-  transform: translateX(-50%);
+  transform: translateX(-50%) translateY(8px);
   background: rgba(3, 6, 20, 0.94);
   border: 1px solid var(--cyan);
   padding: 11px 18px;
@@ -558,6 +588,14 @@ body.has-host .wrap { padding-bottom: 96px; }
   letter-spacing: 0.06em;
   box-shadow: 0 0 26px rgba(34, 230, 255, 0.3);
   z-index: 60;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
 }
 
 #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
