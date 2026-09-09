@@ -26,6 +26,11 @@
     margin: 6px auto 10px;
     padding: 26px 16px 18px;
     line-height: 1;
+    animation: sign-boot-in 0.6s ease-out both;
+  }
+  @keyframes sign-boot-in {
+    from { opacity: 0; transform: scale(0.94) translateY(6px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
   }
   .neon-burst {
     position: absolute;
@@ -37,6 +42,10 @@
     filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.3));
     pointer-events: none;
   }
+  @keyframes line-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  @keyframes shape-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+  .neon-burst line { animation: line-twinkle 2.6s ease-in-out infinite; }
+  .neon-burst rect, .neon-burst circle, .neon-burst polygon { animation: shape-pulse 2.8s ease-in-out infinite; }
   .neon-rowdy, .neon-room { position: relative; z-index: 1; display: block; }
   .neon-rowdy {
     font-family: 'Permanent Marker', cursive;
@@ -74,7 +83,9 @@
     mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent 65%);
     pointer-events: none;
     z-index: 0;
+    animation: reflect-shimmer 4s ease-in-out infinite;
   }
+  @keyframes reflect-shimmer { 0%, 100% { opacity: 0.22; } 50% { opacity: 0.1; } }
   @keyframes neon-flicker {
     0%, 91%, 100% { filter: brightness(1); }
     93% { filter: brightness(0.82); }
@@ -82,10 +93,26 @@
     96% { filter: brightness(0.88); }
     97% { filter: brightness(1); }
   }
-  .neon-rowdy, .neon-room { animation: neon-flicker 6s infinite; }
-  .neon-room { animation-delay: 0.4s; }
+  .neon-rowdy, .neon-room {
+    animation: neon-boot 1.1s ease-out both, neon-flicker 6s 1.1s infinite;
+  }
+  .neon-room { animation-delay: 0.25s, 1.35s; }
+  @keyframes neon-boot {
+    0% { opacity: 0; filter: brightness(0.3); }
+    35% { opacity: 1; filter: brightness(1.5); }
+    42% { opacity: 0.3; filter: brightness(0.4); }
+    55% { opacity: 1; filter: brightness(1.2); }
+    64% { opacity: 0.45; filter: brightness(0.5); }
+    75% { opacity: 1; filter: brightness(1); }
+    100% { opacity: 1; filter: brightness(1); }
+  }
   @media (prefers-reduced-motion: reduce) {
-    .neon-rowdy, .neon-room { animation: none; }
+    .neon-logo,
+    .neon-rowdy, .neon-room,
+    .neon-burst line, .neon-burst rect, .neon-burst circle, .neon-burst polygon,
+    .neon-reflect {
+      animation: none;
+    }
   }
 
   .hero p.lede {
@@ -141,24 +168,24 @@
       <span class="sr-only">Rowdy Room</span>
       <svg class="neon-burst" viewBox="0 0 800 500" aria-hidden="true" focusable="false">
         <g fill="none" stroke-linecap="round">
-          <line x1="450" y1="230" x2="620" y2="120" stroke="#ff2d95" stroke-width="5"/>
-          <line x1="460" y1="255" x2="610" y2="340" stroke="#22e6ff" stroke-width="5"/>
-          <line x1="445" y1="280" x2="560" y2="410" stroke="#b6ff3b" stroke-width="4"/>
-          <line x1="420" y1="295" x2="460" y2="430" stroke="#ffd23f" stroke-width="4"/>
-          <line x1="385" y1="300" x2="340" y2="435" stroke="#9d6bff" stroke-width="5"/>
-          <line x1="355" y1="290" x2="230" y2="395" stroke="#ff2d95" stroke-width="4"/>
-          <line x1="340" y1="270" x2="170" y2="300" stroke="#22e6ff" stroke-width="5"/>
-          <line x1="345" y1="245" x2="175" y2="190" stroke="#b6ff3b" stroke-width="4"/>
-          <line x1="365" y1="225" x2="250" y2="100" stroke="#ffd23f" stroke-width="4"/>
-          <line x1="395" y1="215" x2="360" y2="70" stroke="#9d6bff" stroke-width="5"/>
-          <line x1="425" y1="220" x2="470" y2="65" stroke="#ff2d95" stroke-width="4"/>
-          <line x1="450" y1="235" x2="570" y2="110" stroke="#22e6ff" stroke-width="4"/>
+          <line x1="450" y1="230" x2="620" y2="120" stroke="#ff2d95" stroke-width="5" style="animation-delay:0s"/>
+          <line x1="460" y1="255" x2="610" y2="340" stroke="#22e6ff" stroke-width="5" style="animation-delay:.6s"/>
+          <line x1="445" y1="280" x2="560" y2="410" stroke="#b6ff3b" stroke-width="4" style="animation-delay:1.2s"/>
+          <line x1="420" y1="295" x2="460" y2="430" stroke="#ffd23f" stroke-width="4" style="animation-delay:.3s"/>
+          <line x1="385" y1="300" x2="340" y2="435" stroke="#9d6bff" stroke-width="5" style="animation-delay:.9s"/>
+          <line x1="355" y1="290" x2="230" y2="395" stroke="#ff2d95" stroke-width="4" style="animation-delay:1.5s"/>
+          <line x1="340" y1="270" x2="170" y2="300" stroke="#22e6ff" stroke-width="5" style="animation-delay:.2s"/>
+          <line x1="345" y1="245" x2="175" y2="190" stroke="#b6ff3b" stroke-width="4" style="animation-delay:.8s"/>
+          <line x1="365" y1="225" x2="250" y2="100" stroke="#ffd23f" stroke-width="4" style="animation-delay:1.4s"/>
+          <line x1="395" y1="215" x2="360" y2="70" stroke="#9d6bff" stroke-width="5" style="animation-delay:.5s"/>
+          <line x1="425" y1="220" x2="470" y2="65" stroke="#ff2d95" stroke-width="4" style="animation-delay:1.1s"/>
+          <line x1="450" y1="235" x2="570" y2="110" stroke="#22e6ff" stroke-width="4" style="animation-delay:1.7s"/>
         </g>
         <g fill="none" stroke-width="3">
-          <rect x="586" y="138" width="20" height="20" rx="3" stroke="#b6ff3b" transform="rotate(18 596 148)"/>
-          <circle cx="205" cy="335" r="11" stroke="#ffd23f"/>
-          <polygon points="500,398 516,424 484,424" stroke="#22e6ff"/>
-          <rect x="288" y="98" width="16" height="16" rx="3" stroke="#ff2d95" transform="rotate(-12 296 106)"/>
+          <rect x="586" y="138" width="20" height="20" rx="3" stroke="#b6ff3b" transform="rotate(18 596 148)" style="animation-delay:0s"/>
+          <circle cx="205" cy="335" r="11" stroke="#ffd23f" style="animation-delay:.7s"/>
+          <polygon points="500,398 516,424 484,424" stroke="#22e6ff" style="animation-delay:1.4s"/>
+          <rect x="288" y="98" width="16" height="16" rx="3" stroke="#ff2d95" transform="rotate(-12 296 106)" style="animation-delay:.4s"/>
         </g>
       </svg>
       <span class="neon-rowdy" aria-hidden="true">ROWDY</span>

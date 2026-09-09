@@ -125,6 +125,23 @@ a { color: var(--cyan); }
   color: #bfe9ff;
   text-shadow: 0 0 6px rgba(34, 230, 255, 0.85), 0 0 14px rgba(34, 230, 255, 0.5);
 }
+/* one-time power-on flicker when a page loads, then settles fully lit —
+   a looping flicker here would get distracting since this header is on
+   screen the whole time a game is played, unlike the homepage hero. */
+@keyframes brand-boot {
+  0% { opacity: 0; filter: brightness(0.3); }
+  35% { opacity: 1; filter: brightness(1.5); }
+  42% { opacity: 0.3; filter: brightness(0.4); }
+  55% { opacity: 1; filter: brightness(1.2); }
+  64% { opacity: 0.45; filter: brightness(0.5); }
+  75% { opacity: 1; filter: brightness(1); }
+  100% { opacity: 1; filter: brightness(1); }
+}
+.brand .brand-rowdy, .brand .brand-room { animation: brand-boot 1.3s ease-out both; }
+.brand .brand-room { animation-delay: 0.2s; }
+@media (prefers-reduced-motion: reduce) {
+  .brand .brand-rowdy, .brand .brand-room { animation: none; }
+}
 
 /* ---- panels ---- */
 .card {
