@@ -34,6 +34,10 @@
   .step .num { font-family: var(--mono); font-weight: 700; color: var(--cyan); font-size: 13px; letter-spacing: 0.1em; }
   .step p { margin: 4px 0 0; font-size: 14px; }
 
+  .live-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+  .live-grid .card.hot { margin-top: 0; display: flex; flex-direction: column; }
+  .live-grid .card.hot p { flex: 1 1 auto; }
+
   .games-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
   .games-grid .card { margin-top: 0; }
   .game-emoji { font-size: 26px; line-height: 1; }
@@ -73,20 +77,39 @@
     <div class="rule"></div>
   </div>
 
-  <div class="card hot">
-    <div class="row tight" style="margin-bottom:4px">
-      <span class="game-emoji">🎉</span>
-      <h2>Most Likely To</h2>
+  <div class="live-grid">
+    <div class="card hot">
+      <div class="row tight" style="margin-bottom:4px">
+        <span class="game-emoji">🎉</span>
+        <h2>Most Likely To</h2>
+      </div>
+      <p>Everyone votes on who in the room is most likely to do what. 12 packs, 500+ prompts, chiptune score included — chaos guaranteed.</p>
+      <div class="steps">
+        <div class="step"><span class="num">01</span><p>Open the presenter screen on your TV or laptop</p></div>
+        <div class="step"><span class="num">02</span><p>Everyone scans the code or types it in on their phone</p></div>
+        <div class="step"><span class="num">03</span><p>Vote each round, watch the results land live</p></div>
+      </div>
+      <div class="row tight">
+        <button class="big" style="width:auto;padding-left:30px;padding-right:30px" onclick="location.href='/most-likely-to/present.html'">Play now</button>
+        <button class="ghost" onclick="location.href='/most-likely-to/'">I have a code</button>
+      </div>
     </div>
-    <p>Everyone votes on who in the room is most likely to do what. 12 packs, 500+ prompts, chiptune score included — chaos guaranteed.</p>
-    <div class="steps">
-      <div class="step"><span class="num">01</span><p>Open the presenter screen on your TV or laptop</p></div>
-      <div class="step"><span class="num">02</span><p>Everyone scans the code or types it in on their phone</p></div>
-      <div class="step"><span class="num">03</span><p>Vote each round, watch the results land live</p></div>
-    </div>
-    <div class="row tight">
-      <button class="big" style="width:auto;padding-left:30px;padding-right:30px" onclick="location.href='/most-likely-to/present.html'">Play now</button>
-      <button class="ghost" onclick="location.href='/most-likely-to/'">I have a code</button>
+
+    <div class="card hot">
+      <div class="row tight" style="margin-bottom:4px">
+        <span class="game-emoji">🌶️</span>
+        <h2>Would You Rather</h2>
+      </div>
+      <p>Two options, one vote. Whatever the room is more reluctant about survives to face something even bigger next round — five ladders that escalate all night.</p>
+      <div class="steps">
+        <div class="step"><span class="num">01</span><p>Open the presenter screen on your TV or laptop</p></div>
+        <div class="step"><span class="num">02</span><p>Everyone scans the code or types it in on their phone</p></div>
+        <div class="step"><span class="num">03</span><p>Vote each round and watch the dare escalate</p></div>
+      </div>
+      <div class="row tight">
+        <button class="big" style="width:auto;padding-left:30px;padding-right:30px" onclick="location.href='/would-you-rather/present.html'">Play now</button>
+        <button class="ghost" onclick="location.href='/would-you-rather/'">I have a code</button>
+      </div>
     </div>
   </div>
 
@@ -110,13 +133,6 @@
         <span class="badge soon">Soon</span>
       </div>
       <p class="tiny" style="color:var(--dim)">Real facts about the actual people in the room — birthdays, first jobs, pets — read out anonymously while everyone guesses who it's about.</p>
-    </div>
-    <div class="card soon">
-      <div class="row between" style="margin-bottom:6px">
-        <h3 style="font-size:16px">Hot Mic</h3>
-        <span class="badge soon">Soon</span>
-      </div>
-      <p class="tiny" style="color:var(--dim)">A prompt hits the big screen. Players improvise an answer out loud, live, and the room votes on delivery.</p>
     </div>
   </div>
 
