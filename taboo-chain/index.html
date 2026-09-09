@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rowdy Room — Taboo Chain</title>
+<meta name="description" content="Rowdy Room: Taboo Chain — one phone gets a secret phrase and three banned words, everyone else free-types guesses from live clues.">
+<meta name="theme-color" content="#05040e">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕹️</text></svg>">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .tc-cluefeed {
+    max-height: 32vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+    margin: 10px 0; padding: 12px; border-radius: 8px;
+    background: rgba(182, 255, 59, 0.04); border: 1px solid var(--line);
+  }
+  .tc-cluebubble {
+    font-size: 15px; padding: 8px 12px; border-radius: 8px;
+    background: rgba(255,255,255,0.04); border: 1px solid var(--line); align-self: flex-start;
+    max-width: 90%;
+  }
+  .tc-phrasebig {
+    text-align: center; font-family: var(--mono); font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase; font-size: clamp(22px,6vw,30px);
+    color: var(--lime); text-shadow: 0 0 20px rgba(182,255,59,0.5); margin: 8px 0;
+  }
+  .tc-taboolist { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 10px; }
+  .tc-taboochip {
+    font-family: var(--mono); font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 5px 12px; border-radius: 999px; color: var(--magenta); font-weight: 700;
+    border: 1px solid rgba(255,45,149,0.4); background: rgba(255,45,149,0.08);
+    text-decoration: line-through;
+  }
+  .tc-guessdone { text-align: center; padding: 20px 10px; font-weight: 700; color: var(--lime); }
+  #tcClueIn.shake, #tcGuessIn.shake { animation: tc-shake 0.3s; border-color: var(--magenta) !important; }
+  @keyframes tc-shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+</style>
+</head>
+<body>
+<div class="wrap narrow">
+
+  <div class="brandline">
+    <a class="brand" href="/" style="text-decoration:none"><span class="brand-rowdy">ROWDY</span> <span class="brand-room">ROOM</span> <span>// TABOO CHAIN</span></a>
+    <div class="grow"></div>
+    <button class="ghost mini" id="btnSfx" title="Sound effects">Sound</button>
+    <span class="pill hidden" id="status" data-s="connecting"><i class="dot"></i><span class="txt">Connecting…</span></span>
+  </div>
+
+  <!-- ================= JOIN ================= -->
+  <section id="join" class="screen">
+    <div class="card stack hot">
+      <div class="kicker">Insert coin</div>
+      <h1>Join the game</h1>
+      <p>Grab the 4-character room code off the big screen.</p>
+      <div>
+        <label class="field" for="code">Room code</label>
+        <input type="text" id="code" maxlength="4" autocomplete="off" autocapitalize="characters"
+               spellcheck="false" placeholder="ABCD"
+               style="text-transform:uppercase;letter-spacing:.4em;font-size:28px;font-weight:700;text-align:center;font-family:var(--mono)">
+      </div>
+      <div>
+        <label class="field" for="name">Your name</label>
+        <input type="text" id="name" maxlength="18" autocomplete="off" placeholder="e.g. Aidan">
+      </div>
+      <button class="big" id="btnJoin">Join</button>
+      <p class="tiny">Hosting instead? <a href="present.html">Open the presenter screen</a>.</p>
+    </div>
+  </section>
+
+  <!-- ================= WAIT ================= -->
+  <section id="wait" class="screen hidden">
+    <div class="card stack hot">
+      <div class="kicker">Lobby</div>
+      <h1 id="waitHi">You're in!</h1>
+      <p id="waitMsg">Waiting for the host to start…</p>
+      <div class="players" id="waitPlayers"></div>
+    </div>
+    <div class="card">
+      <button class="ghost" id="btnLeave">Leave game</button>
+    </div>
+  </section>
+
+  <!-- ================= CLUE ================= -->
+  <section id="clue" class="screen hidden">
+    <div class="card stack">
+      <div class="row between">
+        <span class="qbanner" id="cBanner">—</span>
+        <div class="count" id="cClock" style="font-size:26px"></div>
+      </div>
+      <div class="timerbar"><i id="cFill"></i></div>
+
+      <div id="tcGiverUI" class="hidden">
+        <div class="tc-phrasebig" id="tcPhraseBig">Getting your phrase…</div>
+        <div class="tc-taboolist" id="tcTabooList"></div>
+        <div class="tc-cluefeed" id="tcClueFeedGiver"></div>
+        <div class="gb-input-row" style="display:flex;gap:10px;margin:10px 0">
+          <input type="text" id="tcClueIn" placeholder="Type a clue…" autocomplete="off" style="flex:1 1 auto;min-width:0">
+          <button id="btnClue" style="flex:none">Send</button>
+        </div>
+        <p class="tiny"><span id="cCorrect">0</span> / <span id="cTotal">0</span> have guessed it so far</p>
+      </div>
+
+      <div id="tcGuesserUI" class="hidden">
+        <div class="tc-cluefeed" id="tcClueFeedGuesser"></div>
+        <div id="tcGuessForm">
+          <div class="gb-input-row" style="display:flex;gap:10px;margin:10px 0">
+            <input type="text" id="tcGuessIn" placeholder="Type your guess…" autocomplete="off" style="flex:1 1 auto;min-width:0">
+            <button id="btnGuess" style="flex:none">Guess</button>
+          </div>
+        </div>
+        <div id="tcGuessDone" class="tc-guessdone hidden">✓ Got it! Waiting for the others…</div>
+        <p class="tiny"><span id="gCorrect">0</span> / <span id="gTotal">0</span> have guessed it so far</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= REVEAL ================= -->
+  <section id="reveal" class="screen hidden">
+    <div class="card stack">
+      <span class="qbanner" id="rBanner">—</span>
+      <div class="tc-phrasebig" id="rPhrase">—</div>
+      <div class="tc-taboolist"><span class="tiny" id="rTaboo" style="color:var(--dimmer)"></span></div>
+      <div class="tc-cluefeed" id="tcRevealFeed"></div>
+      <p class="tiny" id="rGiverLine" style="text-align:center"></p>
+      <div class="dc-my-outcome" id="rMyOutcome" style="text-align:center;padding:10px;border-radius:10px;margin:4px 0 10px;font-weight:700"></div>
+      <div class="bars" id="rBars"></div>
+    </div>
+  </section>
+
+  <!-- ================= FINAL ================= -->
+  <section id="final" class="screen hidden">
+    <div class="card stack hot">
+      <div class="kicker">Game over</div>
+      <h1>Final standings</h1>
+      <div class="podium" id="podium"></div>
+      <div class="lb" id="lb"></div>
+    </div>
+    <div class="card stack">
+      <div class="kicker">Awards for the night</div>
+      <div class="awards" id="awards"></div>
+    </div>
+  </section>
+
+</div>
+
+<div class="hostbar hidden" id="hostBar">
+  <span class="hlbl">Host</span>
+  <div class="row tight grow" id="hostBtns"></div>
+</div>
+
+<script src="/bus.js"></script>
+<script src="/ui.js"></script>
+<script src="/audio.js"></script>
+<script src="/tc.js"></script>
+<script src="/tc-player.js"></script>
+</body>
+</html>
