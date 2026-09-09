@@ -3,120 +3,125 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Rowdy Room — Most Likely To</title>
-<meta name="description" content="Rowdy Room: live party games for you and your friends. First up — 'most likely to…'.">
+<title>Rowdy Room</title>
+<meta name="description" content="Rowdy Room: a live party-game hub. Grab your phones, put the big screen up, and play together — no app, no sign-up, just a code.">
 <meta name="theme-color" content="#05040e">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕹️</text></svg>">
 <link rel="stylesheet" href="/styles.css">
+<style>
+  /* ---- hub-specific additions (layered on top of styles.css's tokens) ---- */
+  .hero { text-align: center; padding: 56px 0 44px; }
+  .hero .kicker { display: block; margin-bottom: 14px; }
+  .hero h1 {
+    font-size: clamp(44px, 10vw, 92px);
+    text-shadow: 0 0 40px rgba(34, 230, 255, 0.35), 0 0 100px rgba(157, 107, 255, 0.18);
+  }
+  .hero p.lede {
+    max-width: 46ch;
+    margin: 16px auto 30px;
+    font-size: clamp(15px, 2vw, 17.5px);
+    color: var(--dim);
+  }
+  .hero .ctas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .hero .ctas button.big { width: auto; padding-left: 34px; padding-right: 34px; }
+  .hero .ctas button.ghost { width: auto; }
+
+  .section-head { display: flex; align-items: baseline; gap: 12px; margin: 54px 0 16px; }
+  .section-head .kicker { white-space: nowrap; }
+  .section-head .rule { flex: 1 1 auto; height: 1px; background: linear-gradient(90deg, var(--line), transparent); }
+
+  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin: 18px 0 22px; }
+  .step .num { font-family: var(--mono); font-weight: 700; color: var(--cyan); font-size: 13px; letter-spacing: 0.1em; }
+  .step p { margin: 4px 0 0; font-size: 14px; }
+
+  .games-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .games-grid .card { margin-top: 0; }
+  .game-emoji { font-size: 26px; line-height: 1; }
+  .card.soon { opacity: 0.62; }
+  .card.soon:hover { opacity: 0.82; }
+
+  .badge.soon {
+    color: var(--violet);
+    border-color: rgba(157, 107, 255, 0.4);
+    background: rgba(157, 107, 255, 0.08);
+  }
+
+  footer.tiny { text-align: center; margin-top: 50px; }
+</style>
 </head>
 <body>
-<div class="wrap narrow">
+<div class="wrap">
 
   <div class="brandline">
-    <a class="brand" href="/" style="text-decoration:none">ROWDY ROOM <span>// MOST LIKELY TO</span></a>
-    <div class="grow"></div>
-    <button class="ghost mini" id="btnSfx" title="Sound effects">Sound</button>
-    <span class="pill hidden" id="status" data-s="connecting"><i class="dot"></i><span class="txt">Connecting…</span></span>
+    <span class="brand">ROWDY ROOM</span>
   </div>
 
-  <!-- ================= JOIN ================= -->
-  <section id="join" class="screen">
-    <div class="card stack hot">
-      <div class="kicker">Insert coin</div>
-      <h1>Join the game</h1>
-      <p>Grab the 4-character room code off the big screen.</p>
-      <div>
-        <label class="field" for="code">Room code</label>
-        <input type="text" id="code" maxlength="4" autocomplete="off" autocapitalize="characters"
-               spellcheck="false" placeholder="ABCD"
-               style="text-transform:uppercase;letter-spacing:.4em;font-size:28px;font-weight:700;text-align:center;font-family:var(--mono)">
+  <!-- ================= HERO ================= -->
+  <section class="hero">
+    <span class="kicker">Party games, live</span>
+    <h1>ROWDY ROOM</h1>
+    <p class="lede">Put the big screen where everyone can see it, get the phones out, and play. No app to install, no account — just a room code.</p>
+    <div class="ctas">
+      <button class="big" onclick="location.href='/most-likely-to/present.html'">▶ Host a game</button>
+      <button class="ghost" onclick="location.href='/most-likely-to/'">Join with a code</button>
+    </div>
+  </section>
+
+  <!-- ================= LIVE NOW ================= -->
+  <div class="section-head">
+    <span class="kicker">Live now</span>
+    <div class="rule"></div>
+  </div>
+
+  <div class="card hot">
+    <div class="row tight" style="margin-bottom:4px">
+      <span class="game-emoji">🎉</span>
+      <h2>Most Likely To</h2>
+    </div>
+    <p>Everyone votes on who in the room is most likely to do what. 12 packs, 500+ prompts, chiptune score included — chaos guaranteed.</p>
+    <div class="steps">
+      <div class="step"><span class="num">01</span><p>Open the presenter screen on your TV or laptop</p></div>
+      <div class="step"><span class="num">02</span><p>Everyone scans the code or types it in on their phone</p></div>
+      <div class="step"><span class="num">03</span><p>Vote each round, watch the results land live</p></div>
+    </div>
+    <div class="row tight">
+      <button class="big" style="width:auto;padding-left:30px;padding-right:30px" onclick="location.href='/most-likely-to/present.html'">Play now</button>
+      <button class="ghost" onclick="location.href='/most-likely-to/'">I have a code</button>
+    </div>
+  </div>
+
+  <!-- ================= COMING SOON ================= -->
+  <div class="section-head">
+    <span class="kicker">Coming soon</span>
+    <div class="rule"></div>
+  </div>
+
+  <div class="games-grid">
+    <div class="card soon">
+      <div class="row between" style="margin-bottom:6px">
+        <h3 style="font-size:16px">Fibbers' Court</h3>
+        <span class="badge soon">Soon</span>
       </div>
-      <div>
-        <label class="field" for="name">Your name</label>
-        <input type="text" id="name" maxlength="18" autocomplete="off" placeholder="e.g. Aidan">
+      <p class="tiny" style="color:var(--dim)">A real fact loses its ending. Everyone fakes the missing answer, and the room votes on which one they believe is true.</p>
+    </div>
+    <div class="card soon">
+      <div class="row between" style="margin-bottom:6px">
+        <h3 style="font-size:16px">Hometown Trivia</h3>
+        <span class="badge soon">Soon</span>
       </div>
-      <button class="big" id="btnJoin">Join</button>
-      <p class="tiny">Hosting instead? <a href="present.html">Open the presenter screen</a>.</p>
+      <p class="tiny" style="color:var(--dim)">Real facts about the actual people in the room — birthdays, first jobs, pets — read out anonymously while everyone guesses who it's about.</p>
     </div>
-  </section>
-
-  <!-- ================= WAIT ================= -->
-  <section id="wait" class="screen hidden">
-    <div class="card stack">
-      <div class="kicker">Lobby</div>
-      <h1 id="waitHi">You're in!</h1>
-      <p id="waitMsg">Waiting for the host to start…</p>
-      <div class="players" id="waitPlayers"></div>
-    </div>
-
-    <div class="card stack hidden" id="addBox">
-      <div class="kicker">Write your own</div>
-      <p style="margin-top:2px">Add a "most likely to…" of your own — it gets shuffled into tonight's game. Nobody sees who wrote what.</p>
-      <div class="row tight">
-        <input type="text" id="myQ" class="grow" maxlength="90" autocomplete="off"
-               placeholder="…get us all banned from the bowling alley" style="flex:1 1 180px">
-        <button id="btnAddQ">Add</button>
+    <div class="card soon">
+      <div class="row between" style="margin-bottom:6px">
+        <h3 style="font-size:16px">Hot Mic</h3>
+        <span class="badge soon">Soon</span>
       </div>
-      <div class="qlist" id="myQList"></div>
-      <p class="tiny" id="addHint"></p>
+      <p class="tiny" style="color:var(--dim)">A prompt hits the big screen. Players improvise an answer out loud, live, and the room votes on delivery.</p>
     </div>
+  </div>
 
-    <div class="card">
-      <button class="ghost" id="btnLeave">Leave game</button>
-    </div>
-  </section>
-
-  <!-- ================= VOTE ================= -->
-  <section id="vote" class="screen hidden">
-    <div class="card stack">
-      <div class="row between">
-        <span class="qbanner" id="vBanner">—</span>
-        <div class="count" id="vClock" style="font-size:26px"></div>
-      </div>
-      <div class="kicker">Most likely to…</div>
-      <div class="qbig" id="vText" style="font-size:clamp(24px,7.4vw,38px)">—</div>
-      <div class="timerbar"><i id="vFill"></i></div>
-      <div class="votegrid" id="vGrid"></div>
-      <p class="tiny" id="vHint">Tap the person you think it is.</p>
-    </div>
-  </section>
-
-  <!-- ================= ROUND RESULT ================= -->
-  <section id="result" class="screen hidden">
-    <div class="card stack">
-      <span class="qbanner" id="rBanner">—</span>
-      <div class="kicker">Most likely to…</div>
-      <div class="qbig" id="rqText" style="font-size:clamp(22px,6.4vw,34px)">—</div>
-      <div class="winner" id="rWin" style="font-size:clamp(20px,5.4vw,28px)"></div>
-      <div class="bars" id="rBars"></div>
-      <p class="tiny" id="rWait">Waiting for the host…</p>
-    </div>
-  </section>
-
-  <!-- ================= DONE ================= -->
-  <section id="done" class="screen hidden">
-    <div class="card stack hot">
-      <div class="kicker">Game over</div>
-      <h1>Final standings</h1>
-      <div class="podium" id="podium"></div>
-      <div class="lb" id="lb"></div>
-    </div>
-    <div class="card stack">
-      <div class="kicker">Awards for the night</div>
-      <div class="awards" id="awards"></div>
-    </div>
-  </section>
+  <footer class="tiny">More Rowdy Room games are in the works — check back soon.</footer>
 
 </div>
-
-<div class="hostbar hidden" id="hostBar">
-  <span class="hlbl">Host</span>
-  <div class="row tight grow" id="hostBtns"></div>
-</div>
-
-<script src="/bus.js"></script>
-<script src="/ui.js"></script>
-<script src="/audio.js"></script>
-<script src="/player.js"></script>
 </body>
 </html>
