@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Presenter · Hill to Die On · Rowdy Room</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕹️</text></svg>">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .htd-statement { font-size: clamp(22px, 4vw, 34px); font-weight: 800; line-height: 1.25; letter-spacing: -0.01em; margin: 10px 0 18px; text-wrap: balance; }
+  .htd-track { position: relative; height: 54px; border-radius: 8px; background: linear-gradient(90deg, rgba(34,230,255,0.12), rgba(157,107,255,0.08) 50%, rgba(255,45,149,0.12)); border: 1px solid var(--line); margin: 10px 0; }
+  .htd-track::before { content: 'DISAGREE'; position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; color: var(--dimmer); }
+  .htd-track::after { content: 'AGREE'; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; color: var(--dimmer); }
+  .htd-dot { position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%; background: var(--dim); transform: translate(-50%, -50%); border: 2px solid rgba(3,6,20,0.7); }
+  .htd-dot.hot { width: 20px; height: 20px; z-index: 2; }
+  .htd-dot-label { position: absolute; top: -22px; left: 50%; transform: translateX(-50%); font-size: 10.5px; font-family: var(--mono); white-space: nowrap; color: var(--dim); }
+  .htd-mark { position: absolute; top: -6px; bottom: -6px; width: 3px; border-radius: 2px; transform: translateX(-50%); }
+  .htd-mark.before { background: var(--dimmer); }
+  .htd-mark.after { background: var(--gold); box-shadow: 0 0 10px var(--gold); }
+  .htd-legend { display: flex; gap: 18px; font-size: 12px; color: var(--dim); margin-top: 6px; }
+  .htd-legend span { display: flex; align-items: center; gap: 6px; }
+  .htd-legend i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .htd-vs { display: flex; align-items: center; justify-content: center; gap: 18px; margin: 16px 0; }
+  .htd-vs .who { display: flex; flex-direction: column; align-items: center; gap: 6px; font-weight: 700; }
+  .htd-vs .x { font-family: var(--mono); color: var(--dimmer); }
+  .htd-reveal-row { margin: 18px 0; }
+  .htd-reveal-row .kicker { margin-bottom: 4px; }
+  #debateClock { font-size: 44px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="brandline">
+    <a class="brand" href="/" style="text-decoration:none">ROWDY ROOM <span>// HILL TO DIE ON · PRESENTER</span></a>
+    <div class="grow"></div>
+    <button class="ghost mini" id="btnMusic" title="Background music">♪ Music</button>
+    <button class="ghost mini" id="btnSfx" title="Sound effects">Sound</button>
+    <span class="pill hidden" id="status" data-s="connecting"><i class="dot"></i><span class="txt">Connecting…</span></span>
+  </div>
+
+  <!-- ================= START ================= -->
+  <section id="start" class="screen">
+    <div class="card stack hot" style="text-align:center">
+      <div class="kicker">Presenter</div>
+      <h1>Hill to Die On</h1>
+      <p style="max-width:48ch;margin:6px auto 14px">A spicy statement, a slider from disagree to agree. Whoever lands furthest apart get 30 seconds to argue it out — then the room votes again.</p>
+      <button class="big" id="btnCreate">Create new room</button>
+      <button class="ghost hidden" id="btnResume">Resume last room</button>
+      <p class="tiny" id="startHint" style="margin-top:2px"></p>
+    </div>
+  </section>
+
+  <!-- ================= LOBBY ================= -->
+  <section id="lobby" class="screen">
+    <div class="card codebox stack hot">
+      <div class="kicker">Join at</div>
+      <div class="joinurl" id="joinUrl">—</div>
+      <div class="kicker" style="margin-top:10px">Room code</div>
+      <div class="codetiles" id="codeText"></div>
+      <div id="qr"></div>
+    </div>
+
+    <div class="card stack">
+      <div class="row between">
+        <h2>Players <span class="muted" id="pcount">(0)</span></h2>
+        <button class="ghost mini" id="btnSettings">Settings</button>
+      </div>
+      <div class="players" id="lobbyPlayers"></div>
+      <p class="tiny" id="lobbyHint">Waiting for people to join…</p>
+      <div class="row tight" id="hostPick">
+        <span class="kicker">Host remote</span>
+        <div class="row tight grow" id="hostPickBtns"></div>
+      </div>
+      <p class="tiny" id="hostPickHint"></p>
+      <button class="big" id="btnStart" disabled>Start game</button>
+    </div>
+
+    <div class="card stack hidden" id="settings">
+      <h3>Game settings</h3>
+      <div class="row">
+        <div class="grow">
+          <label class="field" for="rounds">Rounds</label>
+          <select id="rounds">
+            <option>5</option><option selected>10</option>
+            <option>15</option><option>20</option>
+          </select>
+        </div>
+        <div class="grow">
+          <label class="field" for="secs">Seconds to vote</label>
+          <select id="secs">
+            <option>10</option><option>15</option><option selected>20</option>
+            <option>30</option><option>45</option><option value="0">No timer</option>
+          </select>
+        </div>
+        <div class="grow">
+          <label class="field" for="debateSecs">Debate seconds</label>
+          <select id="debateSecs">
+            <option>15</option><option selected>30</option>
+            <option>45</option><option>60</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <div class="row between" style="margin-bottom:7px">
+          <label class="field" style="margin:0">Take packs</label>
+          <div class="row tight">
+            <button class="ghost mini" id="packAll">All</button>
+            <button class="ghost mini" id="packNone">None</button>
+          </div>
+        </div>
+        <div class="packs" id="packs"></div>
+      </div>
+      <div class="row between">
+        <p class="tiny" id="qcount" style="margin:0"></p>
+        <button class="ghost mini" id="btnForget">Reset used statements</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ASK (shared for first vote + re-vote) ================= -->
+  <section id="ask" class="screen hidden">
+    <div class="card stack">
+      <div class="row between">
+        <div class="row tight">
+          <span class="kicker" id="qBanner">—</span>
+          <span class="kicker" id="qProgress">Q1 / 10</span>
+        </div>
+        <div class="count" id="clock">20</div>
+      </div>
+      <div class="kicker" id="legLabel" style="color:var(--gold)">First vote</div>
+      <div class="htd-statement" id="qText">—</div>
+      <div class="timerbar"><i id="timerFill"></i></div>
+      <div class="row between">
+        <div class="kicker"><span id="votedCount">0</span> / <span id="votedTotal">0</span> voted</div>
+        <button id="btnReveal">Reveal spread</button>
+      </div>
+      <div class="players" id="askPlayers"></div>
+    </div>
+  </section>
+
+  <!-- ================= DEBATE ================= -->
+  <section id="debate" class="screen hidden">
+    <div class="card stack">
+      <span class="kicker" id="dBanner">—</span>
+      <div class="htd-statement" id="dText">—</div>
+      <div id="dSpectrum"></div>
+      <div class="htd-vs">
+        <div class="who" id="debaterA">—</div>
+        <span class="x">VS</span>
+        <div class="who" id="debaterB">—</div>
+      </div>
+      <p class="tiny" id="dPrompt" style="text-align:center"></p>
+      <div class="row between" style="align-items:center">
+        <div id="debateClock">30</div>
+        <button class="ghost" id="btnSkipDebate">Skip to re-vote</button>
+      </div>
+      <div class="timerbar"><i id="debateFill"></i></div>
+    </div>
+  </section>
+
+  <!-- ================= REVEAL ================= -->
+  <section id="reveal" class="screen hidden">
+    <div class="card stack">
+      <span class="kicker" id="rBanner">—</span>
+      <div class="htd-statement" id="rText">—</div>
+
+      <div class="htd-reveal-row">
+        <div class="kicker">Where the room started (dots) — and where it ended up (the two ticks)</div>
+        <div id="rSpectrum"></div>
+      </div>
+      <div class="htd-legend">
+        <span><i style="background:var(--dimmer)"></i> room average before</span>
+        <span><i style="background:var(--gold)"></i> room average after</span>
+      </div>
+
+      <div class="winner" id="rWinner" style="margin-top:12px"></div>
+      <div class="row between" style="margin-top:8px">
+        <div class="kicker" id="rProgress"></div>
+        <button id="btnNext">Next question</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FINAL ================= -->
+  <section id="final" class="screen hidden">
+    <div class="card stack hot">
+      <div class="kicker">Game over</div>
+      <h1 id="finalTitle">Final standings</h1>
+      <div class="podium" id="podium"></div>
+      <div class="lb" id="lb"></div>
+    </div>
+
+    <div class="card stack">
+      <div class="kicker">Awards for the night</div>
+      <div class="awards" id="awards"></div>
+    </div>
+
+    <div class="card">
+      <div class="row tight">
+        <button id="btnAgain">Play again</button>
+        <button class="ghost" id="btnHome">New room</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script src="/bus.js"></script>
+<script src="/htd.js"></script>
+<script src="/ui.js"></script>
+<script src="/audio.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="/htd-presenter.js"></script>
+</body>
+</html>

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rowdy Room — Hill to Die On</title>
+<meta name="description" content="Rowdy Room: Hill to Die On — vote, argue it out, and vote again.">
+<meta name="theme-color" content="#05040e">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕹️</text></svg>">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .htd-statement { font-size: clamp(19px, 5vw, 24px); font-weight: 800; line-height: 1.3; letter-spacing: -0.01em; margin: 6px 0 20px; text-wrap: balance; }
+  .htd-slider-wrap { margin: 10px 0 6px; }
+  .htd-slider-labels { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.08em; color: var(--dimmer); margin-top: 6px; }
+  .htd-slider { width: 100%; -webkit-appearance: none; appearance: none; height: 10px; border-radius: 6px;
+    background: linear-gradient(90deg, #22e6ff, #6b7296 50%, #ff2d95); outline: none; margin: 14px 0 4px; }
+  .htd-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 30px; height: 30px; border-radius: 50%;
+    background: var(--ink); border: 3px solid var(--accent); box-shadow: 0 0 14px var(--accent); cursor: pointer; }
+  .htd-slider::-moz-range-thumb { width: 30px; height: 30px; border-radius: 50%;
+    background: var(--ink); border: 3px solid var(--accent); box-shadow: 0 0 14px var(--accent); cursor: pointer; }
+  .htd-stance-label { text-align: center; font-weight: 800; font-size: 18px; margin: 6px 0 2px; }
+  .htd-track { position: relative; height: 34px; border-radius: 8px;
+    background: linear-gradient(90deg, rgba(34,230,255,0.12), rgba(157,107,255,0.08) 50%, rgba(255,45,149,0.12));
+    border: 1px solid var(--line); margin: 14px 0; }
+  .htd-mark { position: absolute; top: -6px; bottom: -6px; width: 3px; border-radius: 2px; transform: translateX(-50%); }
+  .htd-mark.before { background: var(--dimmer); }
+  .htd-mark.after { background: var(--gold); box-shadow: 0 0 10px var(--gold); }
+  .htd-legend { display: flex; gap: 16px; font-size: 11.5px; color: var(--dim); margin-top: 4px; flex-wrap: wrap; }
+  .htd-legend span { display: flex; align-items: center; gap: 5px; }
+  .htd-legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .debate-self { text-align: center; padding: 24px 10px; }
+  .debate-self .big-emoji { font-size: 40px; margin-bottom: 8px; }
+  .debate-watch { text-align: center; padding: 24px 10px; }
+  #dClock { font-size: 40px; font-weight: 800; text-align: center; margin-top: 6px; }
+</style>
+</head>
+<body>
+<div class="wrap narrow">
+
+  <div class="brandline">
+    <a class="brand" href="/" style="text-decoration:none">ROWDY ROOM <span>// HILL TO DIE ON</span></a>
+    <div class="grow"></div>
+    <button class="ghost mini" id="btnSfx" title="Sound effects">Sound</button>
+    <span class="pill hidden" id="status" data-s="connecting"><i class="dot"></i><span class="txt">Connecting…</span></span>
+  </div>
+
+  <!-- ================= JOIN ================= -->
+  <section id="join" class="screen">
+    <div class="card stack hot">
+      <div class="kicker">Insert coin</div>
+      <h1>Join the game</h1>
+      <p>Grab the 4-character room code off the big screen.</p>
+      <div>
+        <label class="field" for="code">Room code</label>
+        <input type="text" id="code" maxlength="4" autocomplete="off" autocapitalize="characters"
+               spellcheck="false" placeholder="ABCD"
+               style="text-transform:uppercase;letter-spacing:.4em;font-size:28px;font-weight:700;text-align:center;font-family:var(--mono)">
+      </div>
+      <div>
+        <label class="field" for="name">Your name</label>
+        <input type="text" id="name" maxlength="18" autocomplete="off" placeholder="e.g. Aidan">
+      </div>
+      <button class="big" id="btnJoin">Join</button>
+      <p class="tiny">Hosting instead? <a href="present.html">Open the presenter screen</a>.</p>
+    </div>
+  </section>
+
+  <!-- ================= WAIT ================= -->
+  <section id="wait" class="screen hidden">
+    <div class="card stack">
+      <div class="kicker">Lobby</div>
+      <h1 id="waitHi">You're in!</h1>
+      <p id="waitMsg">Waiting for the host to start…</p>
+      <div class="players" id="waitPlayers"></div>
+    </div>
+    <div class="card">
+      <button class="ghost" id="btnLeave">Leave game</button>
+    </div>
+  </section>
+
+  <!-- ================= VOTE (shared for first vote + re-vote) ================= -->
+  <section id="vote" class="screen hidden">
+    <div class="card stack">
+      <div class="row between">
+        <span class="qbanner" id="vBanner">—</span>
+      </div>
+      <div class="kicker" id="vLegLabel" style="color:var(--gold)">First vote</div>
+      <div class="htd-statement" id="vStatement">—</div>
+
+      <div class="htd-slider-wrap">
+        <div class="htd-stance-label" id="stanceLabel">Not sure</div>
+        <input type="range" min="0" max="100" value="50" id="stanceSlider" class="htd-slider">
+        <div class="htd-slider-labels"><span>DISAGREE</span><span>AGREE</span></div>
+      </div>
+
+      <p class="tiny" id="vHint">Drag the slider, then it sends automatically.</p>
+    </div>
+  </section>
+
+  <!-- ================= DEBATE ================= -->
+  <section id="debate" class="screen hidden">
+    <div class="card stack">
+      <span class="qbanner" id="dBanner">—</span>
+      <div class="htd-statement" id="dStatement">—</div>
+      <p style="text-align:center;font-weight:800" id="dVs">—</p>
+
+      <div id="debateSelf" class="debate-self hidden">
+        <div class="big-emoji">🔥</div>
+        <p>You're one of the debaters — make your case out loud!</p>
+      </div>
+      <div id="debateWatch" class="debate-watch hidden">
+        <div class="big-emoji">👀</div>
+        <p>Listen up — the re-vote is next.</p>
+      </div>
+
+      <div id="dClock">30</div>
+    </div>
+  </section>
+
+  <!-- ================= ROUND RESULT ================= -->
+  <section id="result" class="screen hidden">
+    <div class="card stack">
+      <span class="qbanner" id="rBanner">—</span>
+      <div class="htd-statement" id="rStatement">—</div>
+      <p class="tiny" id="rDebaters"></p>
+      <div class="htd-track" id="rTrack">
+        <div class="htd-mark before hidden" id="rBeforeMark"></div>
+        <div class="htd-mark after hidden" id="rAfterMark"></div>
+      </div>
+      <div class="htd-legend">
+        <span><i style="background:var(--dimmer)"></i> before</span>
+        <span><i style="background:var(--gold)"></i> after</span>
+      </div>
+      <div class="winner" id="rWinner" style="margin-top:10px"></div>
+      <p class="tiny" id="rWait">Waiting for the host…</p>
+    </div>
+  </section>
+
+  <!-- ================= DONE ================= -->
+  <section id="done" class="screen hidden">
+    <div class="card stack hot">
+      <div class="kicker">Game over</div>
+      <h1>Final standings</h1>
+      <div class="podium" id="podium"></div>
+      <div class="lb" id="lb"></div>
+    </div>
+    <div class="card stack">
+      <div class="kicker">Awards for the night</div>
+      <div class="awards" id="awards"></div>
+    </div>
+  </section>
+
+</div>
+
+<div class="hostbar hidden" id="hostBar">
+  <span class="hlbl">Host</span>
+  <div class="row tight grow" id="hostBtns"></div>
+</div>
+
+<script src="/bus.js"></script>
+<script src="/ui.js"></script>
+<script src="/audio.js"></script>
+<script src="/htd-player.js"></script>
+</body>
+</html>
