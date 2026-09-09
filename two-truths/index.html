@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rowdy Room — Two Truths and a Room</title>
+<meta name="description" content="Rowdy Room: Two Truths and a Room — write a true thing and a lie about yourself, then catch everyone else's.">
+<meta name="theme-color" content="#05040e">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕹️</text></svg>">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .ttr-choice {
+    display: block; width: 100%; text-align: left;
+    padding: 18px 20px; border-radius: 6px; margin-bottom: 12px;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.03);
+    color: var(--ink); font-family: var(--sans);
+    font-size: 16.5px; font-weight: 700; line-height: 1.4;
+    box-shadow: none;
+  }
+  .ttr-choice .ttr-tag {
+    display: block; font-family: var(--mono); font-size: 10.5px; font-weight: 700;
+    letter-spacing: 0.18em; color: var(--dimmer); margin-bottom: 6px;
+  }
+  .ttr-choice[aria-pressed="true"] {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 18%, rgba(3,6,20,0.7));
+    box-shadow: 0 0 22px color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  .ttr-choice.dimmed { opacity: 0.42; }
+  .ttr-or-sep { text-align: center; font-family: var(--mono); font-size: 12px; color: var(--dimmer); margin: -4px 0 10px; letter-spacing: 0.1em; }
+  .ttr-opt-label { font-weight: 800; font-size: 15px; margin-bottom: 8px; }
+  .ttr-tag { font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: 0.18em; margin-bottom: 6px; }
+  .subfield { margin-bottom: 12px; }
+  .subfield textarea {
+    width: 100%; resize: vertical; min-height: 56px;
+    font-family: var(--sans); font-size: 15px; color: var(--ink);
+    background: rgba(255,255,255,0.03); border: 1px solid var(--line); border-radius: 6px;
+    padding: 10px 12px; box-sizing: border-box;
+  }
+  .subfield textarea:focus { outline: none; border-color: var(--accent); }
+  .author-watch { text-align: center; padding: 30px 10px; }
+  .author-watch .big-emoji { font-size: 40px; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+<div class="wrap narrow">
+
+  <div class="brandline">
+    <a class="brand" href="/" style="text-decoration:none">ROWDY ROOM <span>// TWO TRUTHS AND A ROOM</span></a>
+    <div class="grow"></div>
+    <button class="ghost mini" id="btnSfx" title="Sound effects">Sound</button>
+    <span class="pill hidden" id="status" data-s="connecting"><i class="dot"></i><span class="txt">Connecting…</span></span>
+  </div>
+
+  <!-- ================= JOIN ================= -->
+  <section id="join" class="screen">
+    <div class="card stack hot">
+      <div class="kicker">Insert coin</div>
+      <h1>Join the game</h1>
+      <p>Grab the 4-character room code off the big screen.</p>
+      <div>
+        <label class="field" for="code">Room code</label>
+        <input type="text" id="code" maxlength="4" autocomplete="off" autocapitalize="characters"
+               spellcheck="false" placeholder="ABCD"
+               style="text-transform:uppercase;letter-spacing:.4em;font-size:28px;font-weight:700;text-align:center;font-family:var(--mono)">
+      </div>
+      <div>
+        <label class="field" for="name">Your name</label>
+        <input type="text" id="name" maxlength="18" autocomplete="off" placeholder="e.g. Aidan">
+      </div>
+      <button class="big" id="btnJoin">Join</button>
+      <p class="tiny">Hosting instead? <a href="present.html">Open the presenter screen</a>.</p>
+    </div>
+  </section>
+
+  <!-- ================= WAIT (also where statements get written) ================= -->
+  <section id="wait" class="screen hidden">
+    <div class="card stack hot" id="subForm">
+      <div class="kicker">Your two statements</div>
+      <h1 id="waitHi">You're in!</h1>
+      <p class="tiny" id="subStatus">Write one true thing and one believable lie about yourself.</p>
+      <div class="subfield">
+        <label class="field" for="myTruth">Something true about you</label>
+        <textarea id="myTruth" maxlength="100" placeholder="e.g. I once met a president in an airport"></textarea>
+      </div>
+      <div class="subfield">
+        <label class="field" for="myLie">Something false about you (make it believable!)</label>
+        <textarea id="myLie" maxlength="100" placeholder="e.g. I broke my arm skydiving in college"></textarea>
+      </div>
+      <button class="big" id="btnSaveSubs">Save my two statements</button>
+    </div>
+    <div class="card stack">
+      <div class="kicker">Lobby</div>
+      <p id="waitMsg">Waiting for the host to start…</p>
+      <div class="players" id="waitPlayers"></div>
+    </div>
+    <div class="card">
+      <button class="ghost" id="btnLeave">Leave game</button>
+    </div>
+  </section>
+
+  <!-- ================= VOTE ================= -->
+  <section id="vote" class="screen hidden">
+    <div class="card stack">
+      <div class="row between">
+        <span class="qbanner" id="vBanner">—</span>
+        <div class="count" id="vClock" style="font-size:26px"></div>
+      </div>
+
+      <div id="voteBody">
+        <div class="kicker">Which one's the lie?</div>
+        <button class="ttr-choice" id="optA" aria-pressed="false">
+          <span class="ttr-tag">STATEMENT 1</span>
+          <span id="optAText">—</span>
+        </button>
+        <div class="ttr-or-sep">OR</div>
+        <button class="ttr-choice" id="optB" aria-pressed="false">
+          <span class="ttr-tag">STATEMENT 2</span>
+          <span id="optBText">—</span>
+        </button>
+        <div class="timerbar"><i id="vFill"></i></div>
+        <p class="tiny" id="vHint">Tap the one you think is the lie.</p>
+      </div>
+
+      <div id="authorBody" class="author-watch hidden">
+        <div class="big-emoji">👀</div>
+        <p>Everyone's voting on <b>your</b> statements right now.</p>
+        <p class="tiny">Sit back and see who falls for it.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ROUND RESULT ================= -->
+  <section id="result" class="screen hidden">
+    <div class="card stack">
+      <span class="qbanner" id="rBanner">—</span>
+      <div class="kicker">Which one was the lie?</div>
+      <div class="bars">
+        <div id="rOptA"></div>
+        <div id="rOptB"></div>
+      </div>
+      <div class="winner" id="rEscalates" style="font-size:clamp(15px,3.4vw,19px)"></div>
+      <p class="tiny" id="rWait">Waiting for the host…</p>
+    </div>
+  </section>
+
+  <!-- ================= DONE ================= -->
+  <section id="done" class="screen hidden">
+    <div class="card stack hot">
+      <div class="kicker">Game over</div>
+      <h1>Final standings</h1>
+      <div class="podium" id="podium"></div>
+      <div class="lb" id="lb"></div>
+    </div>
+    <div class="card stack">
+      <div class="kicker">Awards for the night</div>
+      <div class="awards" id="awards"></div>
+    </div>
+  </section>
+
+</div>
+
+<div class="hostbar hidden" id="hostBar">
+  <span class="hlbl">Host</span>
+  <div class="row tight grow" id="hostBtns"></div>
+</div>
+
+<script src="/bus.js"></script>
+<script src="/ui.js"></script>
+<script src="/audio.js"></script>
+<script src="/ttr-player.js"></script>
+</body>
+</html>
