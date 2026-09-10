@@ -135,10 +135,80 @@
     } catch (e) { return null; }
   }
 
+  /* ------------------------------------------------------------------ */
+  /* shuffle playlist — chain a few games together under one room code   */
+  /* ------------------------------------------------------------------ */
+  var GAMES = [
+    { slug: 'most-likely-to', name: 'Most Likely To', emoji: '🎉' },
+    { slug: 'would-you-rather', name: 'Would You Rather', emoji: '🌶️' },
+    { slug: 'two-truths', name: 'Two Truths and a Room', emoji: '🤥' },
+    { slug: 'hill-to-die-on', name: 'Hill to Die On', emoji: '⛰️' },
+    { slug: 'hometown-trivia', name: 'Hometown Trivia', emoji: '🏠' },
+    { slug: 'confidently-wrong', name: 'Confidently Wrong', emoji: '🎯' },
+    { slug: 'group-brain', name: 'Group Brain', emoji: '🧠' },
+    { slug: 'doodle-chain', name: 'Doodle Chain', emoji: '🎨' },
+    { slug: 'speed-sketch', name: 'Speed Sketch', emoji: '✏️' },
+    { slug: 'taboo-chain', name: 'Taboo Chain', emoji: '🤐' }
+  ];
+
+  function gameInfo(slug) {
+    for (var i = 0; i < GAMES.length; i++) if (GAMES[i].slug === slug) return GAMES[i];
+    return null;
+  }
+
+  function shuffleGames(n) {
+    var pool = GAMES.slice();
+    for (var i = pool.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = pool[i]; pool[i] = pool[j]; pool[j] = t;
+    }
+    return pool.slice(0, Math.min(n || 3, pool.length));
+  }
+
+  /* Presenter side: on the final screen, if a playlist is queued, add a
+     "Next game" button next to Play Again that hands the whole room —
+     same code, every connected phone — straight into the next game. */
+  function renderPlaylistCTA(opts) {
+    var old = document.getElementById('mltPlaylistNext');
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+    if (!opts || !opts.playlist || !opts.playlist.length) return;
+    var anchor = $('#btnAgain');
+    if (!anchor || !anchor.parentNode) return;
+    var next = opts.playlist[0];
+    var rest = opts.playlist.slice(1);
+    var info = gameInfo(next);
+    var btn = el('button', {
+      class: 'big', id: 'mltPlaylistNext',
+      text: '▶ Next up: ' + (info ? info.emoji + ' ' + info.name : next)
+    });
+    btn.addEventListener('click', function () {
+      btn.disabled = true;
+      try { opts.send({ t: 'advance', slug: next, r: opts.code, pl: rest }); } catch (e) {}
+      setTimeout(function () {
+        global.location.href = '/' + next + '/present.html?r=' + opts.code + '&auto=1' +
+          (rest.length ? '&pl=' + rest.join(',') : '');
+      }, 150);
+    });
+    anchor.parentNode.insertBefore(btn, anchor);
+  }
+
+  /* Player side: a host advancing the playlist broadcasts this — every
+     connected phone follows straight into the next game, no re-scanning. */
+  function handleAdvance(m, myName) {
+    if (!m || m.t !== 'advance' || !m.slug || !m.r) return false;
+    var url = '/' + m.slug + '/?r=' + m.r + '&auto=1' +
+      (m.pl && m.pl.length ? '&pl=' + m.pl.join(',') : '') +
+      (myName ? '&nm=' + encodeURIComponent(myName) : '');
+    global.location.href = url;
+    return true;
+  }
+
   global.MLT = global.MLT || {};
   Object.assign(global.MLT, {
     $: $, $$: $$, el: el, colorFor: colorFor, initials: initials,
     avatar: avatar, show: show, toast: toast, wireStatus: wireStatus,
-    uid: uid, store: store, confetti: confetti, countUp: countUp, reduced: reduced
+    uid: uid, store: store, confetti: confetti, countUp: countUp, reduced: reduced,
+    GAMES: GAMES, gameInfo: gameInfo, shuffleGames: shuffleGames,
+    renderPlaylistCTA: renderPlaylistCTA, handleAdvance: handleAdvance
   });
 })(window);

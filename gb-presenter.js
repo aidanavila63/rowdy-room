@@ -1,7 +1,8 @@
 (function () {
   var $ = MLT.$, el = MLT.el, show = MLT.show, avatar = MLT.avatar, A = MLT.audio;
   var ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  var SAVE = 'wyr.host.v1';
+  var SAVE = 'gb.host.v1';
+  var ACCENT = '#3dff9e';
 
   /* ------------------------------------------------------------------ */
   /* state                                                               */
@@ -9,22 +10,21 @@
   function blankGame() {
     return {
       code: randomCode(), seq: 0, phase: 'lobby',
-      round: 0, total: 12, secs: 20, showVoters: true,
-      chains: MLT.WYR_CHAINS.map(function (c) { return c.id; }),
-      order: [], cur: null, curIdx: 0, carryText: null,
-      questions: [], players: [], votes: {}, endsAt: null,
+      round: 0, total: 15, secs: 20, showVoters: true,
+      packs: MLT.GB_PACKS.map(function (p) { return p.id; }),
+      questions: [],
+      players: [], votes: {}, endsAt: null,
       history: [], host: null, lastCmd: 0, lastActivity: Date.now()
     };
   }
 
   var saved = MLT.store(SAVE);
   var G = saved || blankGame();
-  if (!G.chains || !G.chains.length) G.chains = MLT.WYR_CHAINS.map(function (c) { return c.id; });
-  if (!G.order) G.order = [];
+  if (!G.packs || !G.packs.length) G.packs = MLT.GB_PACKS.map(function (p) { return p.id; });
+  if (!G.questions) G.questions = [];
   if (G.host === undefined) G.host = null;
   if (!G.lastCmd) G.lastCmd = 0;
   if (!G.lastActivity) G.lastActivity = Date.now();
-  if (!G.questions) G.questions = [];
   save();
 
   var wantNew = MLT.qs('new') === '1';
@@ -46,6 +46,12 @@
     return s;
   }
   function save() { MLT.store(SAVE, G); }
+
+  function fmt(n) {
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    var r = Math.round(n * 100) / 100;
+    return (r % 1 === 0) ? String(r) : String(r.toFixed(2)).replace(/0+$/, '').replace(/\.$/, '');
+  }
 
   /* ------------------------------------------------------------------ */
   /* transport                                                           */
@@ -82,7 +88,6 @@
     G.endsAt = null;
     G.players = [];
     G.questions = [];
-    G.order = []; G.cur = null; G.curIdx = 0; G.carryText = null;
     G.history = [];
     G.host = null;
     G.lastCmd = 0;
@@ -91,6 +96,7 @@
     connect();
     show('lobby');
     renderLobby();
+    renderPacks();
     makeQR();
     broadcast(true);
     A.ready();
@@ -104,7 +110,7 @@
     saved = null;
     G = blankGame();
     save();
-    window.__WG = G;
+    window.__GBG = G;
     openStart();
     if (reason) MLT.toast(reason);
   }
@@ -134,7 +140,7 @@
       var n = saved.players.length;
       $('#btnResume').textContent = 'Resume room ' + saved.code +
         ' · ' + n + ' player' + (n === 1 ? '' : 's');
-      $('#startHint').textContent = 'Creating a new room clears the players and the lobby. Scores are remembered either way.';
+      $('#startHint').textContent = 'Creating a new room clears the players. Scores are remembered either way.';
     } else {
       $('#startHint').textContent = '';
     }
@@ -154,37 +160,45 @@
     }, wait);
   }
 
-  function currentQ() { return G.questions[G.round] || { a: '', b: '', chain: G.chains[0] }; }
+  function currentQ() { return G.questions[G.round] || { q: '', answer: 0, unit: '' }; }
+
+  function poolFromPacks() {
+    var pool = [];
+    MLT.GB_PACKS.forEach(function (pk) {
+      if (G.packs.indexOf(pk.id) < 0) return;
+      pk.items.forEach(function (it) { pool.push(it); });
+    });
+    return pool;
+  }
+
+  function crowdAverage() {
+    var vals = Object.keys(G.votes).map(function (id) { return G.votes[id]; }).filter(function (v) { return isFinite(v); });
+    if (!vals.length) return null;
+    return vals.reduce(function (a, b) { return a + b; }, 0) / vals.length;
+  }
 
   function publicState() {
     var q = currentQ();
     var s = {
       phase: G.phase, round: G.round, total: G.total,
-      a: q.a, b: q.b, chain: q.chain, endsAt: G.endsAt, secs: G.secs,
       players: G.players.map(function (p) { return { id: p.id, name: p.name, pts: p.pts }; }),
       showVoters: !!G.showVoters,
       host: G.host || null
     };
     if (G.phase === 'ask' || G.phase === 'reveal') {
-      var info = MLT.wyrChainInfo(q.chain);
-      s.cn = info.name; s.ce = info.emoji; s.ca = info.accent;
+      s.q = q.q;
+      s.unit = q.unit || '';
     }
     if (G.phase === 'ask') {
       s.voted = Object.keys(G.votes);
     } else if (G.phase === 'reveal') {
+      s.answer = q.answer;
       s.votes = G.votes;
-      var t = tally();
-      s.votesA = t.a; s.votesB = t.b; s.majority = t.a >= t.b ? 'a' : 'b';
+      s.crowdAvg = crowdAverage();
     } else if (G.phase === 'final') {
       s.awards = computeAwards();
     }
     return s;
-  }
-
-  function tally() {
-    var a = 0, b = 0;
-    Object.keys(G.votes).forEach(function (v) { if (G.votes[v] === 'a') a++; else if (G.votes[v] === 'b') b++; });
-    return { a: a, b: b };
   }
 
   function playerById(id) {
@@ -196,36 +210,6 @@
     return -1;
   }
   function nameOf(id) { var p = playerById(id); return p ? p.name : '—'; }
-
-  /* ------------------------------------------------------------------ */
-  /* the escalation ladder                                               */
-  /* ------------------------------------------------------------------ */
-  function pickNextChain() {
-    if (!G.order.length) G.order = MLT.shuffle((G.chains.length ? G.chains : MLT.WYR_CHAINS.map(function (c) { return c.id; })).slice());
-    return G.order.shift();
-  }
-
-  /* Builds the pairing for the round AFTER the one currently playing.
-     carryText, when set, is the option that survived the round just
-     revealed (the one fewer people picked) — it faces a fresh item next. */
-  function buildRound(carryText) {
-    var chain, items;
-    if (carryText !== null && G.cur) {
-      chain = MLT.wyrChainInfo(G.cur);
-      items = chain.items;
-      if (G.curIdx < items.length) {
-        var next = items[G.curIdx];
-        G.curIdx++;
-        return { a: carryText, b: next, chain: G.cur };
-      }
-      /* ladder's used up — fall through to start a new one */
-      G.cur = null;
-    }
-    G.cur = pickNextChain();
-    chain = MLT.wyrChainInfo(G.cur);
-    G.curIdx = 2;
-    return { a: chain.items[0], b: chain.items[1], chain: G.cur };
-  }
 
   /* ------------------------------------------------------------------ */
   /* incoming                                                            */
@@ -258,7 +242,7 @@
       G.lastCmd = m.n;
       save();
       var d = m.do;
-      if (d === 'start') { if (G.phase === 'lobby' && G.players.length >= 2) startGame(); }
+      if (d === 'start') { if (G.phase === 'lobby' && G.players.length >= 2 && poolFromPacks().length >= 1) startGame(); }
       else if (d === 'reveal') { if (G.phase === 'ask') doReveal(); }
       else if (d === 'skip') { if (G.phase === 'ask') skipRound(); }
       else if (d === 'next') { if (G.phase === 'reveal') nextRound(); }
@@ -269,12 +253,14 @@
 
     } else if (m.t === 'vote') {
       if (G.phase !== 'ask' || m.round !== G.round) return;
-      if (!playerById(m.from) || (m.pick !== 'a' && m.pick !== 'b')) return;
-      if (G.votes[m.from] === m.pick) return;
-      G.votes[m.from] = m.pick;
+      if (!playerById(m.from)) return;
+      var val = Number(m.pick);
+      if (!isFinite(val) || Math.abs(val) > 1e12) return;
+      if (G.votes[m.from] === val) return;
+      G.votes[m.from] = val;
       A.sfx('pick');
       save(); renderAsk();
-      if (Object.keys(G.votes).length >= G.players.length && G.players.length) {
+      if (Object.keys(G.votes).length >= G.players.length && G.players.length > 0) {
         setTimeout(function () { if (G.phase === 'ask') doReveal(); }, 700);
       } else {
         broadcast(false);
@@ -286,14 +272,15 @@
   /* flow                                                                */
   /* ------------------------------------------------------------------ */
   function startGame() {
-    G.total = parseInt($('#rounds').value, 10) || G.total || 12;
+    var desired = parseInt($('#rounds').value, 10) || G.total || 15;
     var s = parseInt($('#secs').value, 10);
     if (!isNaN(s)) G.secs = s;
     G.showVoters = $('#showVoters').checked;
+    var pool = MLT.shuffle(poolFromPacks());
+    G.total = Math.min(desired, pool.length);
+    G.questions = pool.slice(0, G.total);
     G.round = 0;
     G.history = [];
-    G.order = []; G.cur = null; G.curIdx = 0; G.carryText = null;
-    G.questions = [buildRound(null)];
     G.players.forEach(function (p) { p.pts = 0; });
     startRound();
   }
@@ -371,31 +358,24 @@
     clearInterval(clockTimer);
     G.phase = 'reveal';
     G.endsAt = null;
-    var t = tally();
-    var cast = t.a + t.b;
-    var majority = t.a >= t.b ? 'a' : 'b';     /* ties favour "a", so "b" escalates */
-    var minority = majority === 'a' ? 'b' : 'a';
     var q = currentQ();
-    if (cast > 0) {
-      Object.keys(G.votes).forEach(function (voter) {
-        if (G.votes[voter] === majority) {
-          var p = playerById(voter);
-          if (p) p.pts += 1;
-        }
-      });
-    }
-    G.history.push({ chain: q.chain, a: q.a, b: q.b, votesA: t.a, votesB: t.b });
-    /* pre-build the next round now, while we know what survives */
-    if (G.round + 1 < G.total) {
-      G.questions[G.round + 1] = buildRound(cast > 0 ? q[minority] : q.a);
-    }
+    var scores = {};
+    Object.keys(G.votes).forEach(function (voter) {
+      var p = playerById(voter);
+      if (!p) return;
+      var sc = MLT.gbScore(G.votes[voter], q.answer);
+      scores[voter] = sc;
+      p.pts += sc;
+    });
+    G.history.push({ q: q.q, answer: q.answer, unit: q.unit, guesses: Object.assign({}, G.votes), scores: scores });
     save();
     show('reveal');
-    renderReveal(t, majority);
+    renderReveal(q);
     broadcast(true);
     A.music('lobby');
     A.sfx('reveal');
-    if (cast > 0) setTimeout(function () { A.sfx('winner'); }, 950);
+    var top = Object.keys(scores).reduce(function (m, id) { return Math.max(m, scores[id]); }, 0);
+    if (top >= 90) setTimeout(function () { A.sfx('winner'); }, 950);
   }
 
   function nextRound() {
@@ -418,39 +398,44 @@
     if (G.phase !== 'ask') return;
     clearInterval(clockTimer);
     G.votes = {};
+    if (G.round + 1 >= G.questions.length) { doReveal(); return; }
+    G.questions.splice(G.round, 1);
+    if (G.total > G.questions.length) G.total = G.questions.length;
     startRound();
   }
 
   function playAgain() {
     G.phase = 'lobby';
     G.round = 0; G.votes = {}; G.endsAt = null; G.history = [];
-    G.order = []; G.cur = null; G.curIdx = 0; G.carryText = null;
     G.questions = [];
     G.players.forEach(function (p) { p.pts = 0; });
     save();
-    show('lobby'); renderLobby(); renderChains(); broadcast(true);
+    show('lobby'); renderLobby(); broadcast(true);
     A.music('lobby');
   }
 
   /* ------------------------------------------------------------------ */
-  /* awards — no per-round "target", so keep it to two overall reads     */
+  /* awards                                                              */
   /* ------------------------------------------------------------------ */
   function computeAwards() {
-    if (G.players.length < 2 || !G.history.length) return [];
-    var sorted = G.players.slice().sort(function (a, b) { return b.pts - a.pts; });
+    if (G.players.length < 3 || !G.history.length) return [];
+    var best = null, worst = null;
+    G.history.forEach(function (h) {
+      Object.keys(h.scores).forEach(function (id) {
+        if (!playerById(id)) return;
+        var sc = h.scores[id];
+        if (!best || sc > best.n) best = { id: id, n: sc };
+        if (!worst || sc < worst.n) worst = { id: id, n: sc };
+      });
+    });
     var awards = [];
-    if (sorted[0] && sorted[0].pts > 0) {
-      awards.push({
-        t: 'Crowd Favorite', p: sorted[0].id, c: '#ffd23f',
-        d: sorted[0].pts + ' of ' + G.history.length + ' calls sided with the room'
-      });
+    if (best && best.n > 0) {
+      awards.push({ t: 'Human Calculator', p: best.id, c: '#3dff9e',
+        d: 'Landed a guess worth ' + best.n + ' out of 100 points in a single round' });
     }
-    var low = sorted[sorted.length - 1];
-    if (low && low.id !== (sorted[0] || {}).id) {
-      awards.push({
-        t: 'Wildcard', p: low.id, c: '#9d6bff',
-        d: 'Went against the room the most — only ' + low.pts + (low.pts === 1 ? ' agreed call' : ' agreed calls')
-      });
+    if (worst && worst.n < best.n) {
+      awards.push({ t: 'Way Off', p: worst.id, c: '#ff8a3d',
+        d: 'A single guess that scored just ' + worst.n + ' out of 100 — not even close' });
     }
     return awards;
   }
@@ -458,12 +443,6 @@
   /* ------------------------------------------------------------------ */
   /* render                                                              */
   /* ------------------------------------------------------------------ */
-  function setAccent(chainId) {
-    var info = MLT.wyrChainInfo(chainId);
-    document.documentElement.style.setProperty('--accent', info.accent);
-    return info;
-  }
-
   function joinUrl() {
     var base = location.href.split('?')[0].split('#')[0].replace(/present(\.html)?$/, '');
     var u = base + '?r=' + G.code;
@@ -487,6 +466,7 @@
   }
 
   function renderLobby() {
+    document.documentElement.style.setProperty('--accent', ACCENT);
     var tiles = $('#codeText');
     if (tiles.textContent !== G.code) {
       tiles.innerHTML = '';
@@ -505,11 +485,14 @@
     });
     renderHostPick();
     $('#pcount').textContent = '(' + G.players.length + ')';
-    $('#btnStart').disabled = G.players.length < 2;
+    var avail = poolFromPacks().length;
+    $('#btnStart').disabled = G.players.length < 2 || avail < 1;
     $('#lobbyHint').textContent = G.players.length < 2
       ? 'Waiting for people to join… you need at least 2.'
-      : 'Everyone in? Hit start.';
-    renderChains();
+      : avail < 1
+        ? 'Pick at least one question pack in Settings.'
+        : 'Everyone in? Hit start.';
+    renderPacks();
   }
 
   function renderHostPick() {
@@ -538,13 +521,38 @@
       : 'Tap a name to hand the game controls to that phone, so you can play along without standing at this screen.';
   }
 
+  function renderPacks() {
+    var box = $('#packs');
+    if (!box) return;
+    box.innerHTML = '';
+    MLT.GB_PACKS.forEach(function (p) {
+      var on = G.packs.indexOf(p.id) >= 0;
+      box.appendChild(el('button', {
+        class: 'pack', 'aria-pressed': on ? 'true' : 'false', 'data-pack': p.id,
+        style: '--pc:' + p.accent,
+        onclick: function () {
+          var i = G.packs.indexOf(p.id);
+          if (i >= 0) G.packs.splice(i, 1); else G.packs.push(p.id);
+          save(); renderPacks(); renderLobby();
+        }
+      }, [
+        el('span', { class: 'em', text: p.emoji }),
+        el('span', { text: p.name }),
+        el('span', { class: 'n', text: String(p.items.length) })
+      ]));
+    });
+    var avail = poolFromPacks().length;
+    $('#qcount').textContent = avail
+      ? avail + ' question' + (avail === 1 ? '' : 's') + ' ready' + (G.packs.length ? ' · ' + G.packs.length + ' pack' + (G.packs.length > 1 ? 's' : '') : '')
+      : 'Pick at least one pack.';
+  }
+
   function renderAsk() {
+    document.documentElement.style.setProperty('--accent', ACCENT);
     var q = currentQ();
-    var info = setAccent(q.chain);
-    $('#qBanner').textContent = info.emoji + '  ' + info.name;
     $('#qProgress').textContent = 'Q' + (G.round + 1) + ' / ' + G.total;
-    $('#optAText').textContent = q.a;
-    $('#optBText').textContent = q.b;
+    $('#qText').textContent = q.q;
+    $('#qUnit').textContent = q.unit ? 'Answer in ' + q.unit : '';
     $('#votedCount').textContent = Object.keys(G.votes).length;
     $('#votedTotal').textContent = G.players.length;
     $('#secsNow').textContent = G.secs > 0 ? G.secs + 's per round' : 'no countdown';
@@ -554,46 +562,48 @@
     var box = $('#askPlayers');
     box.innerHTML = '';
     G.players.forEach(function (p, i) {
-      box.appendChild(el('span', { class: 'chip' + (G.votes[p.id] ? ' voted' : '') }, [
+      box.appendChild(el('span', { class: 'chip' + (G.votes[p.id] !== undefined ? ' voted' : '') }, [
         avatar(p.name, i), el('span', { text: p.name })
       ]));
     });
   }
 
-  function renderReveal(t, majority) {
-    t = t || tally();
-    majority = majority || (t.a >= t.b ? 'a' : 'b');
-    var q = currentQ();
-    var info = setAccent(q.chain);
-    $('#rBanner').textContent = info.emoji + '  ' + info.name;
+  function renderReveal(q) {
+    document.documentElement.style.setProperty('--accent', ACCENT);
+    q = q || currentQ();
+    $('#rText').textContent = q.q;
+    $('#rAnswer').textContent = fmt(q.answer) + (q.unit ? ' ' + q.unit : '');
+    var crowd = crowdAverage();
+    $('#rCrowd').textContent = crowd === null ? '—' : fmt(crowd) + (q.unit ? ' ' + q.unit : '');
+    $('#rCrowdScore').textContent = crowd === null ? '—' : MLT.gbScore(crowd, q.answer) + ' / 100';
 
-    var cast = t.a + t.b;
-    var votersFor = function (side) {
-      return Object.keys(G.votes).filter(function (v) { return G.votes[v] === side; }).map(nameOf);
-    };
-    renderOptionBar($('#rOptA'), q.a, t.a, cast, votersFor('a'), majority === 'a');
-    renderOptionBar($('#rOptB'), q.b, t.b, cast, votersFor('b'), majority === 'b');
+    var bars = $('#rBars');
+    bars.innerHTML = '';
+    var last = G.history[G.history.length - 1] || { scores: {} };
+    var rows = G.players.map(function (p, i) {
+      return { p: p, i: i, guess: G.votes[p.id], score: last.scores[p.id] };
+    }).filter(function (r) { return r.guess !== undefined; })
+      .sort(function (a, b) { return b.score - a.score; });
+    rows.forEach(function (r) {
+      var col = MLT.colorFor(r.i);
+      var fill = el('i', { style: 'background:' + col + ';color:' + col });
+      var cell = el('div', {}, [el('div', { class: 'track' }, [fill])]);
+      cell.appendChild(el('div', { class: 'voters', text: 'guessed ' + fmt(r.guess) + (q.unit ? ' ' + q.unit : '') }));
+      var num = el('div', { class: 'n', text: '0' });
+      bars.appendChild(el('div', { class: 'bar' }, [
+        el('div', { class: 'who' }, [avatar(r.p.name, r.i), el('span', { text: r.p.name })]),
+        cell, num
+      ]));
+      setTimeout(function () { MLT.countUp(num, r.score, 700); fill.style.width = r.score + '%'; }, 60);
+    });
+    var noGuess = G.players.filter(function (p) { return G.votes[p.id] === undefined; });
+    if (noGuess.length) {
+      bars.appendChild(el('div', { class: 'tiny', style: 'color:var(--dimmer);margin-top:2px', text: 'Sat out: ' + noGuess.map(function (p) { return p.name; }).join(', ') }));
+    }
 
-    var minority = majority === 'a' ? 'b' : 'a';
-    $('#rEscalates').textContent = cast === 0
-      ? "Nobody voted — carrying on with " + q.a
-      : 'Escalates next: ' + q[minority];
     $('#rProgress').textContent = 'Q' + (G.round + 1) + ' / ' + G.total;
     $('#btnNext').textContent = (G.round + 1 >= G.total) ? 'Final standings' : 'Next question';
   }
-
-  function renderOptionBar(node, text, n, cast, voters, isMajority) {
-    node.innerHTML = '';
-    var pct = cast ? Math.round((n / cast) * 100) : 0;
-    node.appendChild(el('div', { class: 'wyr-opt-label', text: text }));
-    var track = el('div', { class: 'track' }, [el('i', { style: 'width:0%;background:var(--accent);color:var(--accent)' })]);
-    node.appendChild(el('div', {}, [track]));
-    var meta = el('div', { class: 'tiny', text: n + (n === 1 ? ' vote' : ' votes') + (isMajority && cast ? ' · room favorite' : '') });
-    node.appendChild(meta);
-    if (MLT_SHOW_VOTERS() && voters.length) node.appendChild(el('div', { class: 'voters', text: voters.join(', ') }));
-    setTimeout(function () { track.firstChild.style.width = pct + '%'; }, 60);
-  }
-  function MLT_SHOW_VOTERS() { return !!G.showVoters; }
 
   function renderPodium(node, players) {
     node.innerHTML = '';
@@ -609,7 +619,7 @@
       slot.appendChild(el('div', { class: 'head' }, [
         avatar(p.name, idx),
         el('div', { class: 'nm', text: p.name }),
-        el('div', { class: 'sc', text: p.pts + (p.pts === 1 ? ' agreed call' : ' agreed calls') })
+        el('div', { class: 'sc', text: p.pts + ' pts' })
       ]));
       var col2 = el('div', { class: 'col', style: 'color:' + col },
         [el('div', { class: 'rk', text: String(rank + 1) })]);
@@ -621,6 +631,7 @@
 
   function renderFinal() {
     MLT.renderPlaylistCTA({ playlist: PLAYLIST, code: G.code, send: function (m) { if (bus) bus.send(m); } });
+    document.documentElement.style.setProperty('--accent', '#3dff9e');
     var sorted = G.players.slice().sort(function (a, b) { return b.pts - a.pts; });
     renderPodium($('#podium'), sorted);
 
@@ -630,7 +641,7 @@
       lb.appendChild(el('div', { class: 'lbrow' }, [
         el('div', { class: 'rank', text: String(i + 4) }),
         el('div', { class: 'name' }, [avatar(p.name, indexOfPlayer(p.id)), el('span', { text: p.name })]),
-        el('div', { class: 'pts', text: p.pts + (p.pts === 1 ? ' call' : ' calls') })
+        el('div', { class: 'pts', text: p.pts + ' pts' })
       ]));
     });
 
@@ -645,11 +656,10 @@
       ]));
     });
 
-    $('#finalTitle').textContent = sorted.length && sorted[0].pts
-      ? sorted[0].name + ' called it best'
+    $('#finalTitle').textContent = sorted.length
+      ? sorted[0].name + " has the biggest brain"
       : 'Final standings';
 
-    document.documentElement.style.setProperty('--accent', '#ffd23f');
     MLT.confetti(sorted.slice(0, 3).map(function (p) { return MLT.colorFor(indexOfPlayer(p.id)); }));
   }
 
@@ -658,30 +668,6 @@
     else if (G.phase === 'ask') renderAsk();
     else if (G.phase === 'reveal') renderReveal();
     else renderFinal();
-  }
-
-  function renderChains() {
-    var box = $('#chains');
-    box.innerHTML = '';
-    MLT.WYR_CHAINS.forEach(function (c) {
-      var on = G.chains.indexOf(c.id) >= 0;
-      box.appendChild(el('button', {
-        class: 'pack', 'aria-pressed': on ? 'true' : 'false', 'data-chain': c.id,
-        style: '--pc:' + c.accent,
-        onclick: function () {
-          var i = G.chains.indexOf(c.id);
-          if (i >= 0) G.chains.splice(i, 1); else G.chains.push(c.id);
-          save(); renderChains();
-        }
-      }, [
-        el('span', { class: 'em', text: c.emoji }),
-        el('span', { text: c.name }),
-        el('span', { class: 'n', text: String(c.items.length - 1) + ' rounds' })
-      ]));
-    });
-    $('#qcount').textContent = G.chains.length
-      ? G.chains.length + ' ladder' + (G.chains.length > 1 ? 's' : '') + ' selected'
-      : 'Pick at least one ladder to play.';
   }
 
   /* ------------------------------------------------------------------ */
@@ -697,13 +683,17 @@
   });
   $('#btnSettings').addEventListener('click', function () { $('#settings').classList.toggle('hidden'); });
   $('#btnStart').addEventListener('click', function () { A.ready(); startGame(); });
-  $('#chainAll').addEventListener('click', function () {
-    G.chains = MLT.WYR_CHAINS.map(function (c) { return c.id; });
-    save(); renderChains();
-  });
-  $('#chainNone').addEventListener('click', function () { G.chains = []; save(); renderChains(); });
   $('#showVoters').addEventListener('change', function () {
     G.showVoters = $('#showVoters').checked; save(); broadcast(true);
+  });
+  $('#packAll').addEventListener('click', function () {
+    G.packs = MLT.GB_PACKS.map(function (p) { return p.id; });
+    save(); renderPacks(); renderLobby();
+  });
+  $('#packNone').addEventListener('click', function () { G.packs = []; save(); renderPacks(); renderLobby(); });
+  $('#rounds').addEventListener('change', function () {
+    G.total = parseInt($('#rounds').value, 10) || G.total || 15;
+    save();
   });
   $('#secs').addEventListener('change', function () {
     var v = parseInt($('#secs').value, 10);
@@ -720,7 +710,7 @@
   $('#btnHome').addEventListener('click', newRoom);
 
   $('#rounds').value = String(G.total);
-  if ($('#rounds').selectedIndex < 0) $('#rounds').value = '12';
+  if ($('#rounds').selectedIndex < 0) $('#rounds').value = '15';
   if (PLAYLIST_MODE) {
     var firstOpt = $('#rounds').options[0];
     if (firstOpt) { $('#rounds').value = firstOpt.value; }
@@ -729,7 +719,7 @@
   $('#secs').value = String(G.secs);
   if ($('#secs').selectedIndex < 0) $('#secs').value = '20';
   $('#showVoters').checked = !!G.showVoters;
-  renderChains();
+  renderPacks();
 
   if (PLAYLIST_MODE) newRoom((MLT.qs('r') || '').toUpperCase());
   else if (wantNew) newRoom();
@@ -737,5 +727,5 @@
   else openStart();
 
   window.addEventListener('beforeunload', save);
-  window.__WG = G;
+  window.__GBG = G;
 })();

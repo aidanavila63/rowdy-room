@@ -131,13 +131,17 @@
 
   .live-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
   .live-grid .card.hot { margin-top: 0; display: flex; flex-direction: column; }
+  .live-grid .card.hot .row.tight:first-child { align-items: flex-start; }
+  .live-grid .card.hot h2 { min-height: 2.2em; display: flex; align-items: center; }
   .live-grid .card.hot p { flex: 1 1 auto; }
   .live-grid .card.hot p.hook {
     flex: none;
     font-weight: 700;
     color: var(--ink);
     margin: 0 0 2px;
+    min-height: 4.65em;
   }
+  .live-grid .card.hot .row.tight:last-child { margin-top: 4px; }
 
   .games-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
   .games-grid .card { margin-top: 0; }
@@ -197,13 +201,15 @@
     </h1>
     <p class="lede">Put the big screen where everyone can see it, get the phones out, and play. No app to install, no account — just a room code.</p>
     <div class="ctas">
-      <button class="big" onclick="location.href='/most-likely-to/present.html'">▶ Host a game</button>
-      <button class="ghost" onclick="location.href='/most-likely-to/'">Join with a code</button>
+      <button class="big" onclick="scrollToGames()">▶ Pick a game</button>
+      <button class="ghost" onclick="shufflePlaylist()">🔀 Shuffle</button>
+      <button class="ghost" onclick="scrollToGames()">I have a code</button>
     </div>
+    <p class="tiny" style="margin-top:10px;color:var(--dimmer)">Shuffle queues up 3 random games back to back on one room code — no re-scanning between them.</p>
   </section>
 
   <!-- ================= LIVE NOW ================= -->
-  <div class="section-head">
+  <div class="section-head" id="games">
     <span class="kicker">Live now</span>
     <div class="rule"></div>
   </div>
@@ -359,5 +365,21 @@
   <footer class="tiny">More Rowdy Room games are in the works — check back soon.</footer>
 
 </div>
+<script src="/ui.js"></script>
+<script>
+  function scrollToGames() {
+    var target = document.getElementById('games');
+    if (!target) return;
+    var behavior = (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) ? 'auto' : 'smooth';
+    target.scrollIntoView({ behavior: behavior, block: 'start' });
+  }
+  function shufflePlaylist() {
+    var picks = MLT.shuffleGames(3);
+    if (!picks.length) return;
+    var first = picks[0];
+    var rest = picks.slice(1).map(function (g) { return g.slug; });
+    location.href = '/' + first.slug + '/present.html' + (rest.length ? '?pl=' + rest.join(',') : '');
+  }
+</script>
 </body>
 </html>

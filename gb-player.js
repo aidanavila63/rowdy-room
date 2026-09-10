@@ -1,21 +1,15 @@
 (function () {
   var $ = MLT.$, el = MLT.el, show = MLT.show, avatar = MLT.avatar, A = MLT.audio;
   var slot = MLT.qs('me');
-  var SAVE = 'cw.me.v1' + (slot ? '.' + slot : '');
-  var ACCENT = '#22e6ff';
-  var LETTERS = ['A', 'B', 'C', 'D'];
-  var WAGERS = [
-    { n: 1, label: 'Cautious', sub: '×1' },
-    { n: 2, label: 'Confident', sub: '×2' },
-    { n: 3, label: 'Certain', sub: '×3' }
-  ];
+  var SAVE = 'gb.me.v1' + (slot ? '.' + slot : '');
+  var ACCENT = '#3dff9e';
 
   var me = MLT.store(SAVE) || { id: MLT.uid(), name: '', code: '' };
   var bus = null;
   var S = null;
   var lastSeq = -1;
   var skew = 0;
-  var myAnswer = null, myWager = null;
+  var myGuess = null;
   var seenRound = -1;
   var helloTimer = null, clockTimer = null;
   var confettied = false;
@@ -28,6 +22,12 @@
   if (MLT.qs('auto') === '1' && urlCode && $('#name').value) setTimeout(join, 30);
 
   document.documentElement.style.setProperty('--accent', ACCENT);
+
+  function fmt(n) {
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    var r = Math.round(n * 100) / 100;
+    return (r % 1 === 0) ? String(r) : String(r.toFixed(2)).replace(/0+$/, '').replace(/\.$/, '');
+  }
 
   /* ------------------------------------------------------------------ */
   function join() {
@@ -63,7 +63,7 @@
     clearInterval(helloTimer);
     clearInterval(clockTimer);
     if (bus) { bus.close(); bus = null; }
-    S = null; lastSeq = -1; myAnswer = null; myWager = null; seenRound = -1; soundedRound = -1;
+    S = null; lastSeq = -1; myGuess = null; seenRound = -1; soundedRound = -1;
     A.sfx('bye');
     $('#status').classList.add('hidden');
     $('#hostBar').classList.add('hidden');
@@ -165,69 +165,33 @@
   }
 
   function renderVote() {
-    if (seenRound !== S.round) { myAnswer = null; myWager = null; seenRound = S.round; }
+    if (seenRound !== S.round) { myGuess = null; seenRound = S.round; $('#gbGuess').value = ''; }
     $('#vBanner').textContent = 'Q' + (S.round + 1) + '/' + S.total;
     $('#vText').textContent = S.q;
-
-    var list = $('#ansList');
-    var sig = S.round + '|' + (S.options || []).join('|');
-    if (list.dataset.sig !== sig) {
-      list.dataset.sig = sig;
-      list.innerHTML = '';
-      (S.options || []).forEach(function (opt, idx) {
-        list.appendChild(el('button', {
-          class: 'ans-btn', 'aria-pressed': 'false', 'data-idx': String(idx),
-          onclick: function () { myAnswer = idx; trySubmit(); renderVote(); }
-        }, [
-          el('span', { class: 'letter', text: LETTERS[idx] }),
-          el('span', { text: opt })
-        ]));
-      });
-    }
-    MLT.$$('#ansList .ans-btn').forEach(function (b) {
-      var idx = parseInt(b.getAttribute('data-idx'), 10);
-      var picked = myAnswer === idx;
-      b.setAttribute('aria-pressed', picked ? 'true' : 'false');
-      b.classList.toggle('dimmed', myAnswer !== null && !picked);
-    });
-
-    var wrow = $('#wagerRow');
-    if (!wrow.dataset.built) {
-      wrow.dataset.built = '1';
-      wrow.innerHTML = '';
-      WAGERS.forEach(function (w) {
-        wrow.appendChild(el('button', {
-          class: 'wager-btn', 'aria-pressed': 'false', 'data-w': String(w.n),
-          onclick: function () {
-            if (myAnswer === null) { MLT.toast('Pick an answer first'); return; }
-            myWager = w.n; trySubmit(); renderVote();
-          }
-        }, [
-          el('span', { class: 'lbl', text: w.label }),
-          el('span', { class: 'sub', text: w.sub })
-        ]));
-      });
-    }
-    MLT.$$('#wagerRow .wager-btn').forEach(function (b) {
-      var n = parseInt(b.getAttribute('data-w'), 10);
-      b.setAttribute('aria-pressed', myWager === n ? 'true' : 'false');
-      b.disabled = myAnswer === null;
-    });
+    $('#vUnit').textContent = S.unit ? 'Answer in ' + S.unit : '';
 
     var voted = (S.voted || []).length;
-    $('#vHint').textContent = (myAnswer !== null && myWager)
-      ? 'Locked in: ' + LETTERS[myAnswer] + ') ' + S.options[myAnswer] + ' at ×' + myWager + ' · ' + voted + '/' + S.players.length + ' locked in — you can still change it.'
-      : myAnswer !== null
-        ? "Now say how confident you are."
-        : 'Pick an answer, then say how confident you are. ' + voted + '/' + S.players.length + ' locked in.';
+    var locked = $('#gbLocked');
+    if (myGuess !== null) {
+      locked.classList.remove('hidden');
+      locked.textContent = 'Locked in: ' + fmt(myGuess) + (S.unit ? ' ' + S.unit : '') + ' · ' + voted + '/' + S.players.length + ' locked in';
+      $('#vHint').textContent = 'You can still change your guess until the reveal.';
+    } else {
+      locked.classList.add('hidden');
+      $('#vHint').textContent = 'Type a number and lock it in. ' + voted + '/' + S.players.length + ' locked in.';
+    }
 
     runClock();
   }
 
-  function trySubmit() {
-    if (myAnswer === null || !myWager) return;
+  function submitGuess() {
+    var raw = $('#gbGuess').value;
+    var val = parseFloat(raw);
+    if (raw === '' || !isFinite(val)) { MLT.toast('Enter a number first'); return; }
+    myGuess = val;
     A.sfx('pick');
-    bus.send({ t: 'vote', from: me.id, round: S.round, pick: { a: myAnswer, w: myWager } }, 'vote');
+    bus.send({ t: 'vote', from: me.id, round: S.round, pick: val }, 'vote');
+    renderVote();
   }
 
   function runClock() {
@@ -259,47 +223,39 @@
     $('#rBanner').textContent = 'Q' + (S.round + 1) + '/' + S.total;
     $('#rqText').textContent = S.q;
 
-    var votes = S.votes || {}, counts = S.counts || [];
-    var cast = Object.keys(votes).length;
-    var correctCount = 0;
-    Object.keys(votes).forEach(function (v) { if (votes[v].a === S.correct) correctCount++; });
-    $('#rWin').textContent = cast === 0
-      ? 'Nobody locked in an answer — it was ' + LETTERS[S.correct] + ') ' + S.options[S.correct]
-      : 'The answer was ' + LETTERS[S.correct] + ') ' + S.options[S.correct] + ' — ' + correctCount + ' of ' + cast + ' got it right';
+    var votes = S.votes || {};
+    $('#rAnswer').textContent = fmt(S.answer) + (S.unit ? ' ' + S.unit : '');
+    $('#rCrowd').textContent = S.crowdAvg === null || S.crowdAvg === undefined ? '—' : fmt(S.crowdAvg) + (S.unit ? ' ' + S.unit : '');
 
     var mine = votes[me.id];
     var outcome = $('#myOutcome');
-    if (mine) {
-      var right = mine.a === S.correct;
+    if (mine !== undefined) {
+      var sc = MLT.gbScore(mine, S.answer);
       outcome.classList.remove('hidden');
-      outcome.style.color = right ? '#3dff9e' : '#ff2d95';
-      outcome.style.background = right ? 'rgba(61,255,158,0.1)' : 'rgba(255,45,149,0.1)';
-      outcome.textContent = (right ? '+' + mine.w + ' — you called it' : '−' + mine.w + ' — that one stung');
+      outcome.style.color = sc >= 60 ? '#3dff9e' : sc >= 25 ? '#ffd23f' : '#ff2d95';
+      outcome.style.background = sc >= 60 ? 'rgba(61,255,158,0.1)' : sc >= 25 ? 'rgba(255,210,63,0.1)' : 'rgba(255,45,149,0.1)';
+      outcome.textContent = sc + ' / 100 — you guessed ' + fmt(mine) + (S.unit ? ' ' + S.unit : '');
     } else {
       outcome.classList.add('hidden');
     }
 
-    var bars = $('#rOptBars');
+    var bars = $('#rBars');
     bars.innerHTML = '';
-    var max = Math.max(1, counts.reduce(function (a, b) { return Math.max(a, b); }, 0));
-    (S.options || []).forEach(function (opt, idx) {
-      var isCorrect = idx === S.correct;
-      var n = counts[idx] || 0;
-      var voters = Object.keys(votes).filter(function (v) { return votes[v].a === idx; }).map(playerName);
-      var col = isCorrect ? '#3dff9e' : MLT.colorFor(idx);
+    var rows = S.players.map(function (p, i) {
+      return { p: p, i: i, guess: votes[p.id], score: votes[p.id] !== undefined ? MLT.gbScore(votes[p.id], S.answer) : null };
+    }).filter(function (r) { return r.guess !== undefined; })
+      .sort(function (a, b) { return b.score - a.score; });
+    rows.forEach(function (r) {
+      var col = MLT.colorFor(r.i);
       var fill = el('i', { style: 'background:' + col + ';color:' + col });
-      var trackWrap = el('div', { style: 'grid-column:1 / -1;margin-top:2px' }, [el('div', { class: 'track' }, [fill])]);
-      if (S.showVoters && voters.length) trackWrap.appendChild(el('div', { class: 'voters', text: voters.join(', ') }));
-      var otext = el('div', { class: 'otext', style: 'display:flex;align-items:center;gap:8px' }, [
-        el('span', { text: opt }),
-        isCorrect ? el('span', { class: 'tag', style: 'color:#3dff9e', text: '✓' }) : null
-      ]);
-      var numNode = el('div', { class: 'n', text: '0' });
-      bars.appendChild(el('div', { class: 'cw-optbar' + (isCorrect ? ' correct' : '') }, [
-        el('span', { class: 'letter', text: LETTERS[idx] }),
-        otext, numNode, trackWrap
+      var cell = el('div', {}, [el('div', { class: 'track' }, [fill])]);
+      if (S.showVoters) cell.appendChild(el('div', { class: 'voters', text: 'guessed ' + fmt(r.guess) + (S.unit ? ' ' + S.unit : '') }));
+      var num = el('div', { class: 'n', text: '0' });
+      bars.appendChild(el('div', { class: 'bar' }, [
+        el('div', { class: 'who' }, [avatar(r.p.name, r.i), el('span', { text: r.p.name + (r.p.id === me.id ? ' (you)' : '') })]),
+        cell, num
       ]));
-      setTimeout(function () { MLT.countUp(numNode, n, 500); fill.style.width = (n / max) * 100 + '%'; }, 60);
+      setTimeout(function () { MLT.countUp(num, r.score, 700); fill.style.width = r.score + '%'; }, 60);
     });
 
     $('#rWait').textContent = 'Q' + (S.round + 1) + ' / ' + S.total + ' · waiting for the host…';
@@ -321,7 +277,7 @@
       slotEl.appendChild(el('div', { class: 'head' }, [
         avatar(p.name, idx),
         el('div', { class: 'nm', text: p.name + (p.id === me.id ? ' (you)' : '') }),
-        el('div', { class: 'sc', text: p.pts + (p.pts === 1 ? ' point' : ' points') })
+        el('div', { class: 'sc', text: p.pts + ' pts' })
       ]));
       var bar = el('div', { class: 'col', style: 'color:' + col }, [el('div', { class: 'rk', text: String(rank + 1) })]);
       slotEl.appendChild(bar);
@@ -335,7 +291,7 @@
       lb.appendChild(el('div', { class: 'lbrow' }, [
         el('div', { class: 'rank', text: String(i + 4) }),
         el('div', { class: 'name' }, [avatar(p.name, playerIndex(p.id)), el('span', { text: p.name + (p.id === me.id ? ' (you)' : '') })]),
-        el('div', { class: 'pts', text: p.pts + (p.pts === 1 ? ' pt' : ' pts') })
+        el('div', { class: 'pts', text: p.pts + ' pts' })
       ]));
     });
 
@@ -365,6 +321,8 @@
   $('#btnJoin').addEventListener('click', join);
   $('#name').addEventListener('keydown', function (e) { if (e.key === 'Enter') join(); });
   $('#code').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('#name').focus(); });
+  $('#btnGuess').addEventListener('click', submitGuess);
+  $('#gbGuess').addEventListener('keydown', function (e) { if (e.key === 'Enter') submitGuess(); });
   $('#btnLeave').addEventListener('click', function () {
     leaving = true;
     clearInterval(helloTimer);

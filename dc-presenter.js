@@ -33,6 +33,8 @@
   save();
 
   var wantNew = MLT.qs('new') === '1';
+  var PLAYLIST = (MLT.qs('pl') || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+  var PLAYLIST_MODE = MLT.qs('auto') === '1' || PLAYLIST.length > 0;
   if (wantNew) {
     try {
       var keep = ['bus', 'relay'].map(function (k) {
@@ -77,10 +79,10 @@
     }
   }
 
-  function newRoom() {
+  function newRoom(forceCode) {
     teardownBus(true);
     clearInterval(clockTimer);
-    G.code = randomCode();
+    G.code = (typeof forceCode === 'string' && /^[A-Z0-9]{4}$/.test(forceCode)) ? forceCode : randomCode();
     G.seq = 0;
     G.phase = 'lobby';
     G.round = 0;
@@ -700,6 +702,7 @@
   }
 
   function renderFinal() {
+    MLT.renderPlaylistCTA({ playlist: PLAYLIST, code: G.code, send: function (m) { if (bus) bus.send(m); } });
     document.documentElement.style.setProperty('--accent', ACCENT);
     var chain = G.winnerChain || G.chains[G.winnerIdx] || [];
     var n = (G.voteCounts && G.voteCounts[G.winnerIdx]) || 0;
@@ -776,7 +779,8 @@
   if ($('#capSecs').selectedIndex < 0) $('#capSecs').value = '20';
   renderPacks();
 
-  if (wantNew) newRoom();
+  if (PLAYLIST_MODE) newRoom((MLT.qs('r') || '').toUpperCase());
+  else if (wantNew) newRoom();
   else if (saved && saved.phase === 'build') enterRoom();
   else openStart();
 

@@ -1,7 +1,8 @@
 (function () {
   var $ = MLT.$, el = MLT.el, show = MLT.show, avatar = MLT.avatar, A = MLT.audio;
   var ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  var SAVE = 'wyr.host.v1';
+  var SAVE = 'tc.host.v1';
+  var ACCENT = '#b6ff3b';
 
   /* ------------------------------------------------------------------ */
   /* state                                                               */
@@ -9,22 +10,27 @@
   function blankGame() {
     return {
       code: randomCode(), seq: 0, phase: 'lobby',
-      round: 0, total: 12, secs: 20, showVoters: true,
-      chains: MLT.WYR_CHAINS.map(function (c) { return c.id; }),
-      order: [], cur: null, curIdx: 0, carryText: null,
-      questions: [], players: [], votes: {}, endsAt: null,
-      history: [], host: null, lastCmd: 0, lastActivity: Date.now()
+      secs: 75, totalRounds: 8,
+      packs: MLT.TC_PACKS.map(function (p) { return p.id; }),
+      players: [], order: [], N: 0,
+      round: 0, clueGiverId: null, item: null, usedPhrases: [],
+      liveClues: [], guessed: {}, guessOrder: [],
+      endsAt: null, history: [],
+      host: null, lastCmd: 0, lastActivity: Date.now()
     };
   }
 
   var saved = MLT.store(SAVE);
   var G = saved || blankGame();
-  if (!G.chains || !G.chains.length) G.chains = MLT.WYR_CHAINS.map(function (c) { return c.id; });
+  if (!G.packs || !G.packs.length) G.packs = MLT.TC_PACKS.map(function (p) { return p.id; });
   if (!G.order) G.order = [];
+  if (!G.usedPhrases) G.usedPhrases = [];
+  if (!G.liveClues) G.liveClues = [];
+  if (!G.guessed) G.guessed = {};
+  if (!G.guessOrder) G.guessOrder = [];
   if (G.host === undefined) G.host = null;
   if (!G.lastCmd) G.lastCmd = 0;
   if (!G.lastActivity) G.lastActivity = Date.now();
-  if (!G.questions) G.questions = [];
   save();
 
   var wantNew = MLT.qs('new') === '1';
@@ -78,12 +84,17 @@
     G.seq = 0;
     G.phase = 'lobby';
     G.round = 0;
-    G.votes = {};
+    G.clueGiverId = null;
+    G.item = null;
+    G.usedPhrases = [];
+    G.liveClues = [];
+    G.guessed = {};
+    G.guessOrder = [];
     G.endsAt = null;
-    G.players = [];
-    G.questions = [];
-    G.order = []; G.cur = null; G.curIdx = 0; G.carryText = null;
     G.history = [];
+    G.players = [];
+    G.order = [];
+    G.N = 0;
     G.host = null;
     G.lastCmd = 0;
     G.lastActivity = Date.now();
@@ -91,6 +102,7 @@
     connect();
     show('lobby');
     renderLobby();
+    renderPacks();
     makeQR();
     broadcast(true);
     A.ready();
@@ -104,7 +116,7 @@
     saved = null;
     G = blankGame();
     save();
-    window.__WG = G;
+    window.__TCG = G;
     openStart();
     if (reason) MLT.toast(reason);
   }
@@ -117,13 +129,13 @@
 
   function enterRoom() {
     connect();
-    show(G.phase === 'ask' ? 'ask' : G.phase === 'reveal' ? 'reveal' : G.phase === 'final' ? 'final' : 'lobby');
+    show(G.phase === 'lobby' ? 'lobby' : G.phase);
     renderAll();
     makeQR();
-    if (G.phase === 'ask') runClock();
+    if (G.phase === 'clue') { runClock(); sendSecretItem(); }
     broadcast(true);
     A.ready();
-    A.music(G.phase === 'ask' ? 'round' : 'lobby');
+    A.music(G.phase === 'clue' ? 'round' : 'lobby');
   }
 
   function openStart() {
@@ -134,7 +146,7 @@
       var n = saved.players.length;
       $('#btnResume').textContent = 'Resume room ' + saved.code +
         ' · ' + n + ' player' + (n === 1 ? '' : 's');
-      $('#startHint').textContent = 'Creating a new room clears the players and the lobby. Scores are remembered either way.';
+      $('#startHint').textContent = 'Creating a new room clears the players. Scores are remembered either way.';
     } else {
       $('#startHint').textContent = '';
     }
@@ -142,7 +154,7 @@
 
   var lastPub = 0, pubTimer = null;
   function broadcast(now) {
-    var wait = now ? 0 : Math.max(0, 1100 - (Date.now() - lastPub));
+    var wait = now ? 0 : Math.max(0, 500 - (Date.now() - lastPub));
     clearTimeout(pubTimer);
     pubTimer = setTimeout(function () {
       if (!bus) return;
@@ -154,37 +166,55 @@
     }, wait);
   }
 
-  function currentQ() { return G.questions[G.round] || { a: '', b: '', chain: G.chains[0] }; }
+  function poolFromPacks() {
+    var pool = [];
+    MLT.TC_PACKS.forEach(function (pk) {
+      if (G.packs.indexOf(pk.id) < 0) return;
+      pk.items.forEach(function (it) { pool.push(it); });
+    });
+    return pool;
+  }
+
+  function pickItem() {
+    var pool = poolFromPacks();
+    if (!pool.length) return { phrase: 'MYSTERY', taboo: ['UNKNOWN', 'SECRET', 'HIDDEN'] };
+    var avail = pool.filter(function (it) { return G.usedPhrases.indexOf(it.phrase) < 0; });
+    if (!avail.length) { G.usedPhrases = []; avail = pool.slice(); }
+    var it = avail[Math.floor(Math.random() * avail.length)];
+    G.usedPhrases.push(it.phrase);
+    return it;
+  }
 
   function publicState() {
-    var q = currentQ();
     var s = {
-      phase: G.phase, round: G.round, total: G.total,
-      a: q.a, b: q.b, chain: q.chain, endsAt: G.endsAt, secs: G.secs,
+      phase: G.phase,
       players: G.players.map(function (p) { return { id: p.id, name: p.name, pts: p.pts }; }),
-      showVoters: !!G.showVoters,
-      host: G.host || null
+      host: G.host || null,
+      N: G.N
     };
-    if (G.phase === 'ask' || G.phase === 'reveal') {
-      var info = MLT.wyrChainInfo(q.chain);
-      s.cn = info.name; s.ce = info.emoji; s.ca = info.accent;
-    }
-    if (G.phase === 'ask') {
-      s.voted = Object.keys(G.votes);
+    if (G.phase === 'clue') {
+      s.round = G.round; s.totalRounds = G.totalRounds;
+      s.clueGiverId = G.clueGiverId;
+      s.secs = G.secs; s.endsAt = G.endsAt;
+      s.clues = G.liveClues;
+      s.guessedIds = Object.keys(G.guessed);
+      s.totalGuessers = Math.max(0, G.N - 1);
     } else if (G.phase === 'reveal') {
-      s.votes = G.votes;
-      var t = tally();
-      s.votesA = t.a; s.votesB = t.b; s.majority = t.a >= t.b ? 'a' : 'b';
+      s.round = G.round; s.totalRounds = G.totalRounds;
+      s.clueGiverId = G.clueGiverId;
+      s.phrase = G.item.phrase;
+      s.taboo = G.item.taboo;
+      s.clues = G.liveClues;
+      s.correctCount = Object.keys(G.guessed).length;
+      s.totalGuessers = Math.max(0, G.N - 1);
+      var last = G.history[G.history.length - 1];
+      s.clueGiverPts = last ? last.clueGiverPts : 0;
+      s.guessed = G.guessed;
+      s.guessOrder = G.guessOrder;
     } else if (G.phase === 'final') {
       s.awards = computeAwards();
     }
     return s;
-  }
-
-  function tally() {
-    var a = 0, b = 0;
-    Object.keys(G.votes).forEach(function (v) { if (G.votes[v] === 'a') a++; else if (G.votes[v] === 'b') b++; });
-    return { a: a, b: b };
   }
 
   function playerById(id) {
@@ -197,34 +227,10 @@
   }
   function nameOf(id) { var p = playerById(id); return p ? p.name : '—'; }
 
-  /* ------------------------------------------------------------------ */
-  /* the escalation ladder                                               */
-  /* ------------------------------------------------------------------ */
-  function pickNextChain() {
-    if (!G.order.length) G.order = MLT.shuffle((G.chains.length ? G.chains : MLT.WYR_CHAINS.map(function (c) { return c.id; })).slice());
-    return G.order.shift();
-  }
-
-  /* Builds the pairing for the round AFTER the one currently playing.
-     carryText, when set, is the option that survived the round just
-     revealed (the one fewer people picked) — it faces a fresh item next. */
-  function buildRound(carryText) {
-    var chain, items;
-    if (carryText !== null && G.cur) {
-      chain = MLT.wyrChainInfo(G.cur);
-      items = chain.items;
-      if (G.curIdx < items.length) {
-        var next = items[G.curIdx];
-        G.curIdx++;
-        return { a: carryText, b: next, chain: G.cur };
-      }
-      /* ladder's used up — fall through to start a new one */
-      G.cur = null;
+  function sendSecretItem() {
+    if (bus && G.clueGiverId && G.item) {
+      bus.send({ t: 'secret', to: G.clueGiverId, round: G.round, phrase: G.item.phrase, taboo: G.item.taboo });
     }
-    G.cur = pickNextChain();
-    chain = MLT.wyrChainInfo(G.cur);
-    G.curIdx = 2;
-    return { a: chain.items[0], b: chain.items[1], chain: G.cur };
   }
 
   /* ------------------------------------------------------------------ */
@@ -258,26 +264,52 @@
       G.lastCmd = m.n;
       save();
       var d = m.do;
-      if (d === 'start') { if (G.phase === 'lobby' && G.players.length >= 2) startGame(); }
-      else if (d === 'reveal') { if (G.phase === 'ask') doReveal(); }
-      else if (d === 'skip') { if (G.phase === 'ask') skipRound(); }
+      if (d === 'start') { if (G.phase === 'lobby' && G.players.length >= 3 && poolFromPacks().length >= 1) startGame(); }
+      else if (d === 'skip') { if (G.phase === 'clue') doReveal(); }
+      else if (d === 'timer+') { if (G.phase === 'clue') adjustTimer(5); }
+      else if (d === 'timer-') { if (G.phase === 'clue') adjustTimer(-5); }
+      else if (d === 'timerOff') { if (G.phase === 'clue') toggleNoTimer(); }
       else if (d === 'next') { if (G.phase === 'reveal') nextRound(); }
-      else if (d === 'timer+') { if (G.phase === 'ask') adjustTimer(5); }
-      else if (d === 'timer-') { if (G.phase === 'ask') adjustTimer(-5); }
-      else if (d === 'timerOff') { if (G.phase === 'ask') toggleNoTimer(); }
       else if (d === 'again') { if (G.phase === 'final') playAgain(); }
 
-    } else if (m.t === 'vote') {
-      if (G.phase !== 'ask' || m.round !== G.round) return;
-      if (!playerById(m.from) || (m.pick !== 'a' && m.pick !== 'b')) return;
-      if (G.votes[m.from] === m.pick) return;
-      G.votes[m.from] = m.pick;
-      A.sfx('pick');
-      save(); renderAsk();
-      if (Object.keys(G.votes).length >= G.players.length && G.players.length) {
-        setTimeout(function () { if (G.phase === 'ask') doReveal(); }, 700);
+    } else if (m.t === 'clue') {
+      if (G.phase !== 'clue' || m.from !== G.clueGiverId || m.round !== G.round) return;
+      var text = String(m.text || '').trim().slice(0, 60);
+      if (!text) return;
+      var hit = MLT.tcCheckClue(text, G.item);
+      if (hit) {
+        if (bus) bus.send({ t: 'blocked', to: m.from, word: hit });
+        return;
+      }
+      if (G.liveClues.length >= 20) G.liveClues.shift();
+      G.liveClues.push(text);
+      save(); broadcast(true);
+      A.sfx('blip');
+
+    } else if (m.t === 'needitem') {
+      if (G.phase === 'clue' && m.from === G.clueGiverId) sendSecretItem();
+
+    } else if (m.t === 'guess') {
+      if (G.phase !== 'clue' || m.round !== G.round) return;
+      if (m.from === G.clueGiverId) return;
+      if (G.guessed[m.from] !== undefined) return;
+      if (!playerById(m.from)) return;
+      var guess = String(m.text || '').slice(0, 60);
+      if (MLT.tcNormalize(guess) === MLT.tcNormalize(G.item.phrase) && MLT.tcNormalize(guess)) {
+        var frac = G.endsAt ? Math.max(0, (G.endsAt - Date.now()) / (G.secs * 1000)) : 1;
+        var pts = Math.max(15, Math.round(15 + 85 * frac));
+        G.guessed[m.from] = pts;
+        G.guessOrder.push(m.from);
+        var pl = playerById(m.from);
+        if (pl) pl.pts += pts;
+        A.sfx('pick');
+        save(); renderClue(); broadcast(true);
+        var totalGuessers = Math.max(0, G.N - 1);
+        if (totalGuessers > 0 && Object.keys(G.guessed).length >= totalGuessers) {
+          setTimeout(function () { if (G.phase === 'clue') doReveal(); }, 700);
+        }
       } else {
-        broadcast(false);
+        if (bus) bus.send({ t: 'wrong', to: m.from });
       }
     }
   }
@@ -286,26 +318,32 @@
   /* flow                                                                */
   /* ------------------------------------------------------------------ */
   function startGame() {
-    G.total = parseInt($('#rounds').value, 10) || G.total || 12;
     var s = parseInt($('#secs').value, 10);
     if (!isNaN(s)) G.secs = s;
-    G.showVoters = $('#showVoters').checked;
-    G.round = 0;
+    var r = parseInt($('#rounds').value, 10);
+    if (!isNaN(r)) G.totalRounds = r;
+    G.order = G.players.map(function (p) { return p.id; });
+    G.N = G.order.length;
+    G.usedPhrases = [];
     G.history = [];
-    G.order = []; G.cur = null; G.curIdx = 0; G.carryText = null;
-    G.questions = [buildRound(null)];
     G.players.forEach(function (p) { p.pts = 0; });
+    G.round = 0;
     startRound();
   }
 
   function startRound() {
-    G.phase = 'ask';
-    G.votes = {};
+    G.phase = 'clue';
+    G.clueGiverId = G.order[G.round % G.N];
+    G.item = pickItem();
+    G.liveClues = [];
+    G.guessed = {};
+    G.guessOrder = [];
     G.endsAt = G.secs > 0 ? Date.now() + G.secs * 1000 : null;
     save();
-    show('ask');
-    renderAsk();
+    show('clue');
+    renderClue();
     broadcast(true);
+    sendSecretItem();
     runClock();
     A.sfx('start');
     A.music('round');
@@ -333,7 +371,7 @@
         clock.textContent = '0';
         clock.classList.remove('urgent');
         $('#timerFill').style.width = '0%';
-        if (G.phase === 'ask') doReveal();
+        if (G.phase === 'clue') doReveal();
         return;
       }
       clock.textContent = Math.ceil(left / 1000);
@@ -346,60 +384,52 @@
 
   function adjustTimer(delta) {
     var wasOff = !(G.secs > 0);
-    G.secs = Math.max(5, Math.min(600, (G.secs > 0 ? G.secs : 0) + delta));
-    if (G.phase === 'ask') {
+    G.secs = Math.max(20, Math.min(180, (G.secs > 0 ? G.secs : 0) + delta));
+    if (G.phase === 'clue') {
       G.endsAt = (wasOff || !G.endsAt)
         ? Date.now() + G.secs * 1000
         : Math.max(Date.now() + 2000, G.endsAt + delta * 1000);
       runClock();
     }
-    save(); renderAsk(); broadcast(true);
+    save(); renderClue(); broadcast(true);
   }
 
   function toggleNoTimer() {
     if (G.secs > 0) {
       G.prevSecs = G.secs; G.secs = 0; G.endsAt = null;
     } else {
-      G.secs = G.prevSecs || 20;
-      if (G.phase === 'ask') G.endsAt = Date.now() + G.secs * 1000;
+      G.secs = G.prevSecs || 75;
+      if (G.phase === 'clue') G.endsAt = Date.now() + G.secs * 1000;
     }
-    if (G.phase === 'ask') runClock();
-    save(); renderAsk(); broadcast(true);
+    if (G.phase === 'clue') runClock();
+    save(); renderClue(); broadcast(true);
   }
 
   function doReveal() {
     clearInterval(clockTimer);
     G.phase = 'reveal';
     G.endsAt = null;
-    var t = tally();
-    var cast = t.a + t.b;
-    var majority = t.a >= t.b ? 'a' : 'b';     /* ties favour "a", so "b" escalates */
-    var minority = majority === 'a' ? 'b' : 'a';
-    var q = currentQ();
-    if (cast > 0) {
-      Object.keys(G.votes).forEach(function (voter) {
-        if (G.votes[voter] === majority) {
-          var p = playerById(voter);
-          if (p) p.pts += 1;
-        }
-      });
-    }
-    G.history.push({ chain: q.chain, a: q.a, b: q.b, votesA: t.a, votesB: t.b });
-    /* pre-build the next round now, while we know what survives */
-    if (G.round + 1 < G.total) {
-      G.questions[G.round + 1] = buildRound(cast > 0 ? q[minority] : q.a);
-    }
+    var totalGuessers = Math.max(0, G.N - 1);
+    var correctCount = Object.keys(G.guessed).length;
+    var clueGiverPts = totalGuessers > 0 ? Math.round(100 * correctCount / totalGuessers) : 0;
+    var giverP = playerById(G.clueGiverId);
+    if (giverP) giverP.pts += clueGiverPts;
+    G.history.push({
+      phrase: G.item.phrase, taboo: G.item.taboo, clueGiverId: G.clueGiverId,
+      correctCount: correctCount, totalGuessers: totalGuessers, clueGiverPts: clueGiverPts,
+      guessed: Object.assign({}, G.guessed), clues: G.liveClues.slice()
+    });
     save();
     show('reveal');
-    renderReveal(t, majority);
+    renderReveal();
     broadcast(true);
     A.music('lobby');
     A.sfx('reveal');
-    if (cast > 0) setTimeout(function () { A.sfx('winner'); }, 950);
+    if (totalGuessers > 0 && correctCount >= totalGuessers) setTimeout(function () { A.sfx('winner'); }, 500);
   }
 
   function nextRound() {
-    if (G.round + 1 >= G.total) {
+    if (G.round + 1 >= G.totalRounds) {
       G.phase = 'final';
       save();
       show('final');
@@ -414,43 +444,45 @@
     startRound();
   }
 
-  function skipRound() {
-    if (G.phase !== 'ask') return;
-    clearInterval(clockTimer);
-    G.votes = {};
-    startRound();
-  }
-
   function playAgain() {
     G.phase = 'lobby';
-    G.round = 0; G.votes = {}; G.endsAt = null; G.history = [];
-    G.order = []; G.cur = null; G.curIdx = 0; G.carryText = null;
-    G.questions = [];
+    G.round = 0; G.clueGiverId = null; G.item = null; G.usedPhrases = [];
+    G.liveClues = []; G.guessed = {}; G.guessOrder = []; G.endsAt = null;
+    G.history = [];
     G.players.forEach(function (p) { p.pts = 0; });
     save();
-    show('lobby'); renderLobby(); renderChains(); broadcast(true);
+    show('lobby'); renderLobby(); broadcast(true);
     A.music('lobby');
   }
 
   /* ------------------------------------------------------------------ */
-  /* awards — no per-round "target", so keep it to two overall reads     */
+  /* awards                                                              */
   /* ------------------------------------------------------------------ */
   function computeAwards() {
-    if (G.players.length < 2 || !G.history.length) return [];
-    var sorted = G.players.slice().sort(function (a, b) { return b.pts - a.pts; });
+    if (G.players.length < 3 || !G.history.length) return [];
+    var giverTotals = {}, guessTotals = {};
+    G.history.forEach(function (h) {
+      giverTotals[h.clueGiverId] = (giverTotals[h.clueGiverId] || 0) + h.clueGiverPts;
+      Object.keys(h.guessed).forEach(function (id) {
+        guessTotals[id] = (guessTotals[id] || 0) + h.guessed[id];
+      });
+    });
     var awards = [];
-    if (sorted[0] && sorted[0].pts > 0) {
-      awards.push({
-        t: 'Crowd Favorite', p: sorted[0].id, c: '#ffd23f',
-        d: sorted[0].pts + ' of ' + G.history.length + ' calls sided with the room'
-      });
+    var bestGiver = null;
+    Object.keys(giverTotals).forEach(function (id) {
+      if (!playerById(id)) return;
+      if (!bestGiver || giverTotals[id] > giverTotals[bestGiver]) bestGiver = id;
+    });
+    if (bestGiver && giverTotals[bestGiver] > 0) {
+      awards.push({ t: 'Wordsmith', p: bestGiver, c: '#b6ff3b', d: 'Got the most guessers across every round they gave clues' });
     }
-    var low = sorted[sorted.length - 1];
-    if (low && low.id !== (sorted[0] || {}).id) {
-      awards.push({
-        t: 'Wildcard', p: low.id, c: '#9d6bff',
-        d: 'Went against the room the most — only ' + low.pts + (low.pts === 1 ? ' agreed call' : ' agreed calls')
-      });
+    var sharpest = null;
+    Object.keys(guessTotals).forEach(function (id) {
+      if (!playerById(id)) return;
+      if (!sharpest || guessTotals[id] > guessTotals[sharpest]) sharpest = id;
+    });
+    if (sharpest && guessTotals[sharpest] > 0) {
+      awards.push({ t: 'Sharp Ears', p: sharpest, c: '#3dff9e', d: 'Racked up the most points guessing quickly and correctly' });
     }
     return awards;
   }
@@ -458,12 +490,6 @@
   /* ------------------------------------------------------------------ */
   /* render                                                              */
   /* ------------------------------------------------------------------ */
-  function setAccent(chainId) {
-    var info = MLT.wyrChainInfo(chainId);
-    document.documentElement.style.setProperty('--accent', info.accent);
-    return info;
-  }
-
   function joinUrl() {
     var base = location.href.split('?')[0].split('#')[0].replace(/present(\.html)?$/, '');
     var u = base + '?r=' + G.code;
@@ -487,6 +513,7 @@
   }
 
   function renderLobby() {
+    document.documentElement.style.setProperty('--accent', ACCENT);
     var tiles = $('#codeText');
     if (tiles.textContent !== G.code) {
       tiles.innerHTML = '';
@@ -505,11 +532,14 @@
     });
     renderHostPick();
     $('#pcount').textContent = '(' + G.players.length + ')';
-    $('#btnStart').disabled = G.players.length < 2;
-    $('#lobbyHint').textContent = G.players.length < 2
-      ? 'Waiting for people to join… you need at least 2.'
-      : 'Everyone in? Hit start.';
-    renderChains();
+    var avail = poolFromPacks().length;
+    $('#btnStart').disabled = G.players.length < 3 || avail < 1;
+    $('#lobbyHint').textContent = G.players.length < 3
+      ? 'Waiting for people to join… you need at least 3 — one to give clues, at least two to guess.'
+      : avail < 1
+        ? 'Pick at least one phrase pack in Settings.'
+        : 'Everyone in? Hit start.';
+    renderPacks();
   }
 
   function renderHostPick() {
@@ -534,66 +564,112 @@
       }));
     }
     $('#hostPickHint').textContent = G.host
-      ? nameOf(G.host) + "'s phone can now start, skip and advance the game — you can walk away from this screen."
+      ? nameOf(G.host) + "'s phone can now start and advance the game — you can walk away from this screen."
       : 'Tap a name to hand the game controls to that phone, so you can play along without standing at this screen.';
   }
 
-  function renderAsk() {
-    var q = currentQ();
-    var info = setAccent(q.chain);
-    $('#qBanner').textContent = info.emoji + '  ' + info.name;
-    $('#qProgress').textContent = 'Q' + (G.round + 1) + ' / ' + G.total;
-    $('#optAText').textContent = q.a;
-    $('#optBText').textContent = q.b;
-    $('#votedCount').textContent = Object.keys(G.votes).length;
-    $('#votedTotal').textContent = G.players.length;
+  function renderPacks() {
+    var box = $('#packs');
+    if (!box) return;
+    box.innerHTML = '';
+    MLT.TC_PACKS.forEach(function (p) {
+      var on = G.packs.indexOf(p.id) >= 0;
+      box.appendChild(el('button', {
+        class: 'pack', 'aria-pressed': on ? 'true' : 'false', 'data-pack': p.id,
+        style: '--pc:' + p.accent,
+        onclick: function () {
+          var i = G.packs.indexOf(p.id);
+          if (i >= 0) G.packs.splice(i, 1); else G.packs.push(p.id);
+          save(); renderPacks(); renderLobby();
+        }
+      }, [
+        el('span', { class: 'em', text: p.emoji }),
+        el('span', { text: p.name }),
+        el('span', { class: 'n', text: String(p.items.length) })
+      ]));
+    });
+    var avail = poolFromPacks().length;
+    $('#qcount').textContent = avail
+      ? avail + ' phrase' + (avail === 1 ? '' : 's') + ' ready' + (G.packs.length ? ' · ' + G.packs.length + ' pack' + (G.packs.length > 1 ? 's' : '') : '')
+      : 'Pick at least one pack.';
+  }
+
+  function renderClue() {
+    document.documentElement.style.setProperty('--accent', ACCENT);
+    $('#cProgress').textContent = 'Round ' + (G.round + 1) + ' / ' + G.totalRounds;
+    $('#cGiver').textContent = nameOf(G.clueGiverId) + ' is giving clues';
+    var feed = $('#cClueFeed');
+    feed.innerHTML = '';
+    if (!G.liveClues.length) {
+      feed.appendChild(el('div', { class: 'tiny', style: 'color:var(--dimmer)', text: 'Waiting for the first clue…' }));
+    } else {
+      G.liveClues.forEach(function (c) {
+        feed.appendChild(el('div', { class: 'tc-cluebubble', text: c }));
+      });
+    }
+    feed.scrollTop = feed.scrollHeight;
+    var correct = Object.keys(G.guessed).length;
+    var total = Math.max(0, G.N - 1);
+    $('#cCorrectCount').textContent = correct;
+    $('#cCorrectTotal').textContent = total;
     $('#secsNow').textContent = G.secs > 0 ? G.secs + 's per round' : 'no countdown';
     $('#btnNoTimer').textContent = G.secs > 0 ? 'No timer' : 'Timer on';
-    $('#btnMinus').disabled = !(G.secs > 5);
+    $('#btnMinus').disabled = !(G.secs > 20);
 
-    var box = $('#askPlayers');
+    var box = $('#cluePlayers');
     box.innerHTML = '';
     G.players.forEach(function (p, i) {
-      box.appendChild(el('span', { class: 'chip' + (G.votes[p.id] ? ' voted' : '') }, [
-        avatar(p.name, i), el('span', { text: p.name })
-      ]));
+      if (p.id === G.clueGiverId) {
+        box.appendChild(el('span', { class: 'chip', style: 'border-color:var(--lime);box-shadow:0 0 14px rgba(182,255,59,0.3)' }, [
+          avatar(p.name, i), el('span', { text: p.name }), el('span', { class: 'tag', text: '· clues' })
+        ]));
+      } else {
+        box.appendChild(el('span', { class: 'chip' + (G.guessed[p.id] !== undefined ? ' voted' : '') }, [
+          avatar(p.name, i), el('span', { text: p.name })
+        ]));
+      }
     });
   }
 
-  function renderReveal(t, majority) {
-    t = t || tally();
-    majority = majority || (t.a >= t.b ? 'a' : 'b');
-    var q = currentQ();
-    var info = setAccent(q.chain);
-    $('#rBanner').textContent = info.emoji + '  ' + info.name;
+  function renderReveal() {
+    document.documentElement.style.setProperty('--accent', ACCENT);
+    var last = G.history[G.history.length - 1] || {};
+    $('#rProgress').textContent = 'Round ' + (G.round + 1) + ' / ' + G.totalRounds;
+    $('#rPhrase').textContent = G.item.phrase;
+    $('#rTaboo').textContent = (G.item.taboo || []).join(' · ');
+    var feed = $('#rClueFeed');
+    feed.innerHTML = '';
+    (last.clues || []).forEach(function (c) {
+      feed.appendChild(el('div', { class: 'tc-cluebubble', text: c }));
+    });
+    $('#rGiverName').textContent = nameOf(G.clueGiverId);
+    $('#rGiverPts').textContent = '+' + (last.clueGiverPts || 0) + ' pts';
+    $('#rCorrectCount').textContent = last.correctCount || 0;
+    $('#rCorrectTotal').textContent = last.totalGuessers || 0;
 
-    var cast = t.a + t.b;
-    var votersFor = function (side) {
-      return Object.keys(G.votes).filter(function (v) { return G.votes[v] === side; }).map(nameOf);
-    };
-    renderOptionBar($('#rOptA'), q.a, t.a, cast, votersFor('a'), majority === 'a');
-    renderOptionBar($('#rOptB'), q.b, t.b, cast, votersFor('b'), majority === 'b');
-
-    var minority = majority === 'a' ? 'b' : 'a';
-    $('#rEscalates').textContent = cast === 0
-      ? "Nobody voted — carrying on with " + q.a
-      : 'Escalates next: ' + q[minority];
-    $('#rProgress').textContent = 'Q' + (G.round + 1) + ' / ' + G.total;
-    $('#btnNext').textContent = (G.round + 1 >= G.total) ? 'Final standings' : 'Next question';
+    var bars = $('#rBars');
+    bars.innerHTML = '';
+    var rows = G.guessOrder.map(function (id, i) {
+      return { id: id, rank: i + 1, pts: G.guessed[id] };
+    });
+    rows.forEach(function (r) {
+      var idx = indexOfPlayer(r.id);
+      var col = MLT.colorFor(idx);
+      var fill = el('i', { style: 'background:' + col + ';color:' + col });
+      var num = el('div', { class: 'n', text: '0' });
+      bars.appendChild(el('div', { class: 'bar' }, [
+        el('div', { class: 'who' }, [avatar(nameOf(r.id), idx), el('span', { text: nameOf(r.id) })]),
+        el('div', {}, [el('div', { class: 'track' }, [fill]), el('div', { class: 'voters', text: 'guessed #' + r.rank })]),
+        num
+      ]));
+      setTimeout(function () { MLT.countUp(num, r.pts, 500); fill.style.width = r.pts + '%'; }, 60);
+    });
+    var missed = G.players.filter(function (p) { return p.id !== G.clueGiverId && G.guessed[p.id] === undefined; });
+    if (missed.length) {
+      bars.appendChild(el('div', { class: 'tiny', style: 'color:var(--dimmer);margin-top:2px', text: "Didn't get it: " + missed.map(function (p) { return p.name; }).join(', ') }));
+    }
+    $('#btnNextRound').textContent = (G.round + 1 >= G.totalRounds) ? 'Final standings' : 'Next round';
   }
-
-  function renderOptionBar(node, text, n, cast, voters, isMajority) {
-    node.innerHTML = '';
-    var pct = cast ? Math.round((n / cast) * 100) : 0;
-    node.appendChild(el('div', { class: 'wyr-opt-label', text: text }));
-    var track = el('div', { class: 'track' }, [el('i', { style: 'width:0%;background:var(--accent);color:var(--accent)' })]);
-    node.appendChild(el('div', {}, [track]));
-    var meta = el('div', { class: 'tiny', text: n + (n === 1 ? ' vote' : ' votes') + (isMajority && cast ? ' · room favorite' : '') });
-    node.appendChild(meta);
-    if (MLT_SHOW_VOTERS() && voters.length) node.appendChild(el('div', { class: 'voters', text: voters.join(', ') }));
-    setTimeout(function () { track.firstChild.style.width = pct + '%'; }, 60);
-  }
-  function MLT_SHOW_VOTERS() { return !!G.showVoters; }
 
   function renderPodium(node, players) {
     node.innerHTML = '';
@@ -609,7 +685,7 @@
       slot.appendChild(el('div', { class: 'head' }, [
         avatar(p.name, idx),
         el('div', { class: 'nm', text: p.name }),
-        el('div', { class: 'sc', text: p.pts + (p.pts === 1 ? ' agreed call' : ' agreed calls') })
+        el('div', { class: 'sc', text: p.pts + ' pts' })
       ]));
       var col2 = el('div', { class: 'col', style: 'color:' + col },
         [el('div', { class: 'rk', text: String(rank + 1) })]);
@@ -621,6 +697,7 @@
 
   function renderFinal() {
     MLT.renderPlaylistCTA({ playlist: PLAYLIST, code: G.code, send: function (m) { if (bus) bus.send(m); } });
+    document.documentElement.style.setProperty('--accent', '#3dff9e');
     var sorted = G.players.slice().sort(function (a, b) { return b.pts - a.pts; });
     renderPodium($('#podium'), sorted);
 
@@ -630,7 +707,7 @@
       lb.appendChild(el('div', { class: 'lbrow' }, [
         el('div', { class: 'rank', text: String(i + 4) }),
         el('div', { class: 'name' }, [avatar(p.name, indexOfPlayer(p.id)), el('span', { text: p.name })]),
-        el('div', { class: 'pts', text: p.pts + (p.pts === 1 ? ' call' : ' calls') })
+        el('div', { class: 'pts', text: p.pts + ' pts' })
       ]));
     });
 
@@ -645,43 +722,15 @@
       ]));
     });
 
-    $('#finalTitle').textContent = sorted.length && sorted[0].pts
-      ? sorted[0].name + ' called it best'
-      : 'Final standings';
-
-    document.documentElement.style.setProperty('--accent', '#ffd23f');
+    $('#finalTitle').textContent = sorted.length ? sorted[0].name + ' talks (and listens) the best' : 'Final standings';
     MLT.confetti(sorted.slice(0, 3).map(function (p) { return MLT.colorFor(indexOfPlayer(p.id)); }));
   }
 
   function renderAll() {
     if (G.phase === 'lobby') renderLobby();
-    else if (G.phase === 'ask') renderAsk();
+    else if (G.phase === 'clue') renderClue();
     else if (G.phase === 'reveal') renderReveal();
     else renderFinal();
-  }
-
-  function renderChains() {
-    var box = $('#chains');
-    box.innerHTML = '';
-    MLT.WYR_CHAINS.forEach(function (c) {
-      var on = G.chains.indexOf(c.id) >= 0;
-      box.appendChild(el('button', {
-        class: 'pack', 'aria-pressed': on ? 'true' : 'false', 'data-chain': c.id,
-        style: '--pc:' + c.accent,
-        onclick: function () {
-          var i = G.chains.indexOf(c.id);
-          if (i >= 0) G.chains.splice(i, 1); else G.chains.push(c.id);
-          save(); renderChains();
-        }
-      }, [
-        el('span', { class: 'em', text: c.emoji }),
-        el('span', { text: c.name }),
-        el('span', { class: 'n', text: String(c.items.length - 1) + ' rounds' })
-      ]));
-    });
-    $('#qcount').textContent = G.chains.length
-      ? G.chains.length + ' ladder' + (G.chains.length > 1 ? 's' : '') + ' selected'
-      : 'Pick at least one ladder to play.';
   }
 
   /* ------------------------------------------------------------------ */
@@ -697,45 +746,44 @@
   });
   $('#btnSettings').addEventListener('click', function () { $('#settings').classList.toggle('hidden'); });
   $('#btnStart').addEventListener('click', function () { A.ready(); startGame(); });
-  $('#chainAll').addEventListener('click', function () {
-    G.chains = MLT.WYR_CHAINS.map(function (c) { return c.id; });
-    save(); renderChains();
+  $('#packAll').addEventListener('click', function () {
+    G.packs = MLT.TC_PACKS.map(function (p) { return p.id; });
+    save(); renderPacks(); renderLobby();
   });
-  $('#chainNone').addEventListener('click', function () { G.chains = []; save(); renderChains(); });
-  $('#showVoters').addEventListener('change', function () {
-    G.showVoters = $('#showVoters').checked; save(); broadcast(true);
+  $('#packNone').addEventListener('click', function () { G.packs = []; save(); renderPacks(); renderLobby(); });
+  $('#rounds').addEventListener('change', function () {
+    G.totalRounds = parseInt($('#rounds').value, 10) || G.totalRounds || 8;
+    save();
   });
   $('#secs').addEventListener('change', function () {
     var v = parseInt($('#secs').value, 10);
-    G.secs = isNaN(v) ? 20 : v;
+    G.secs = isNaN(v) ? 75 : v;
     save();
   });
   $('#btnMinus').addEventListener('click', function () { adjustTimer(-5); });
   $('#btnPlus').addEventListener('click', function () { adjustTimer(5); });
   $('#btnNoTimer').addEventListener('click', toggleNoTimer);
-  $('#btnReveal').addEventListener('click', function () { if (G.phase === 'ask') doReveal(); });
-  $('#btnSkip').addEventListener('click', skipRound);
-  $('#btnNext').addEventListener('click', nextRound);
+  $('#btnSkip').addEventListener('click', doReveal);
+  $('#btnNextRound').addEventListener('click', nextRound);
   $('#btnAgain').addEventListener('click', playAgain);
   $('#btnHome').addEventListener('click', newRoom);
 
-  $('#rounds').value = String(G.total);
-  if ($('#rounds').selectedIndex < 0) $('#rounds').value = '12';
+  $('#rounds').value = String(G.totalRounds);
+  if ($('#rounds').selectedIndex < 0) $('#rounds').value = '8';
   if (PLAYLIST_MODE) {
     var firstOpt = $('#rounds').options[0];
     if (firstOpt) { $('#rounds').value = firstOpt.value; }
     $('#rounds').dispatchEvent(new Event('change'));
   }
   $('#secs').value = String(G.secs);
-  if ($('#secs').selectedIndex < 0) $('#secs').value = '20';
-  $('#showVoters').checked = !!G.showVoters;
-  renderChains();
+  if ($('#secs').selectedIndex < 0) $('#secs').value = '75';
+  renderPacks();
 
   if (PLAYLIST_MODE) newRoom((MLT.qs('r') || '').toUpperCase());
   else if (wantNew) newRoom();
-  else if (saved && (saved.phase === 'ask' || saved.phase === 'reveal')) enterRoom();
+  else if (saved && saved.phase === 'clue') enterRoom();
   else openStart();
 
   window.addEventListener('beforeunload', save);
-  window.__WG = G;
+  window.__TCG = G;
 })();

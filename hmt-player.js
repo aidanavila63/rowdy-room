@@ -19,6 +19,8 @@
   var urlCode = (MLT.qs('r') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
   $('#code').value = urlCode || me.code || '';
   $('#name').value = me.name || '';
+  if (!me.name && MLT.qs('nm')) $('#name').value = MLT.qs('nm');
+  if (MLT.qs('auto') === '1' && urlCode && $('#name').value) setTimeout(join, 30);
 
   document.documentElement.style.setProperty('--accent', ACCENT);
 
@@ -92,6 +94,7 @@
 
   var leaving = false;
   function onMessage(m) {
+    if (MLT.handleAdvance(m, me.name)) return;
     if (m.t === 'closed') { roomClosed(); return; }
     if (m.t !== 'state') return;
     if (typeof m.seq === 'number' && m.seq <= lastSeq) return;
