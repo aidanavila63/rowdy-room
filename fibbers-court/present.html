@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Presenter · Fibbers' Court · Rowdy Room</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚖️</text></svg>">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .fb-promptbig {
+    font-size: clamp(20px, 3.6vw, 30px); font-weight: 800; line-height: 1.35;
+    letter-spacing: -0.01em; text-align: center; margin: 10px auto 4px; max-width: 46ch;
+  }
+  .fb-answer-fill {
+    display: inline-block; color: var(--gold); font-weight: 800;
+    text-shadow: 0 0 18px rgba(255,210,63,0.45);
+    border-bottom: 2px dashed color-mix(in srgb, var(--gold) 60%, transparent);
+    padding: 0 2px;
+  }
+  .fb-choices-wrap { display: grid; gap: 10px; margin-top: 6px; }
+  .fb-choice {
+    display: block; width: 100%; text-align: left; box-sizing: border-box;
+    padding: 15px 18px; border-radius: 6px;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.03);
+    color: var(--ink); font-family: var(--sans);
+    font-size: 16px; font-weight: 700; line-height: 1.4;
+    letter-spacing: 0; text-transform: none; box-shadow: none;
+  }
+  .fb-reveal-row {
+    border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px;
+    background: rgba(255,255,255,0.03);
+  }
+  .fb-reveal-row.real { border-color: color-mix(in srgb, #3dff9e 55%, var(--line)); background: color-mix(in srgb, #3dff9e 9%, rgba(3,6,20,0.7)); }
+  .fb-rr-tag { font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: 0.16em; margin-bottom: 5px; }
+  .fb-rr-text { font-weight: 700; font-size: 15.5px; margin-bottom: 8px; }
+  #revealChoices { display: grid; gap: 10px; margin-top: 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="brandline">
+    <a class="brand" href="/" style="text-decoration:none"><span class="brand-rowdy">ROWDY</span> <span class="brand-room">ROOM</span> <span>// FIBBERS' COURT · PRESENTER</span></a>
+    <div class="grow"></div>
+    <button class="ghost mini" id="btnMusic" title="Background music">♪ Music</button>
+    <button class="ghost mini" id="btnSfx" title="Sound effects">Sound</button>
+    <span class="pill hidden" id="status" data-s="connecting"><i class="dot"></i><span class="txt">Connecting…</span></span>
+  </div>
+
+  <!-- ================= START ================= -->
+  <section id="start" class="screen">
+    <div class="card stack hot" style="text-align:center">
+      <div class="kicker">Presenter</div>
+      <h1>Fibbers' Court</h1>
+      <p style="max-width:46ch;margin:6px auto 14px">The big screen shows a real fact with the answer blanked out. Everyone privately writes a fake answer — the room votes for whichever one they believe is true.</p>
+      <button class="big" id="btnCreate">Create new room</button>
+      <button class="ghost hidden" id="btnResume">Resume last room</button>
+      <p class="tiny" id="startHint" style="margin-top:2px"></p>
+    </div>
+  </section>
+
+  <!-- ================= LOBBY ================= -->
+  <section id="lobby" class="screen">
+    <div class="card codebox stack hot">
+      <div class="kicker">Join at</div>
+      <div class="joinurl" id="joinUrl">—</div>
+      <div class="kicker" style="margin-top:10px">Room code</div>
+      <div class="codetiles" id="codeText"></div>
+      <div id="qr"></div>
+    </div>
+
+    <div class="card stack">
+      <div class="row between">
+        <h2>Players <span class="muted" id="pcount">(0)</span></h2>
+        <button class="ghost mini" id="btnSettings">Settings</button>
+      </div>
+      <div class="players" id="lobbyPlayers"></div>
+      <p class="tiny" id="lobbyHint">Waiting for people to join…</p>
+      <div class="row tight" id="hostPick">
+        <span class="kicker">Host remote</span>
+        <div class="row tight grow" id="hostPickBtns"></div>
+      </div>
+      <p class="tiny" id="hostPickHint"></p>
+      <button class="big" id="btnStart" disabled>Start game</button>
+    </div>
+
+    <div class="card stack hidden" id="settings">
+      <h3>Game settings</h3>
+      <div class="row">
+        <div class="grow">
+          <label class="field" for="rounds">Rounds</label>
+          <select id="rounds">
+            <option>5</option><option>8</option><option selected>10</option>
+            <option>15</option><option>20</option>
+          </select>
+        </div>
+        <div class="grow">
+          <label class="field" for="secs">Seconds to answer</label>
+          <select id="secs">
+            <option>20</option><option>30</option><option selected>45</option>
+            <option>60</option><option>90</option><option value="0">No timer</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <div class="row between" style="margin-bottom:7px">
+          <label class="field" style="margin:0">Fact packs</label>
+          <div class="row tight">
+            <button class="ghost mini" id="packAll">All</button>
+            <button class="ghost mini" id="packNone">None</button>
+          </div>
+        </div>
+        <div class="packs" id="packs"></div>
+        <p class="tiny" id="qcount" style="margin-top:8px"></p>
+      </div>
+      <p class="tiny">Everyone writes a fake answer to the same fact, then the room votes for whichever one they believe is true. Voting is anonymous — no names attached until the reveal.</p>
+    </div>
+  </section>
+
+  <!-- ================= SUBMIT ================= -->
+  <section id="submit" class="screen hidden">
+    <div class="card stack">
+      <div class="row between">
+        <span class="qbanner" id="subProgress">Round 1 / 10</span>
+        <div class="count" id="clock">45</div>
+      </div>
+      <div class="kicker" style="text-align:center;margin-top:6px">Fill in the blank</div>
+      <div class="fb-promptbig" id="subPrompt">—</div>
+      <div class="timerbar"><i id="timerFill"></i></div>
+      <div class="row between">
+        <div class="kicker"><span id="subCount">0</span> / <span id="subTotal">0</span> have answered</div>
+        <div class="row tight">
+          <button class="ghost mini" id="btnMinus" title="Shorten this and future rounds">−5s</button>
+          <button class="ghost mini" id="btnPlus" title="Lengthen this and future rounds">+5s</button>
+          <button class="ghost mini" id="btnNoTimer" title="Turn the countdown on or off">No timer</button>
+          <span class="tiny" id="secsNow"></span>
+        </div>
+        <div class="row tight">
+          <button class="ghost" id="btnSkip">Skip</button>
+          <button id="btnLock">Lock answers</button>
+        </div>
+      </div>
+      <div class="players" id="subPlayers"></div>
+    </div>
+  </section>
+
+  <!-- ================= VOTE ================= -->
+  <section id="vote" class="screen hidden">
+    <div class="card stack">
+      <div class="row between">
+        <span class="qbanner" id="voteProgress">Round 1 / 10</span>
+        <div class="count" id="voteClock">20</div>
+      </div>
+      <div class="kicker" style="text-align:center;margin-top:6px">Which one is real?</div>
+      <div class="fb-promptbig" id="votePrompt">—</div>
+      <div class="timerbar"><i id="voteFill"></i></div>
+      <div class="fb-choices-wrap" id="voteChoices"></div>
+      <div class="row between" style="margin-top:6px">
+        <div class="kicker"><span id="voteCount">0</span> / <span id="voteTotal">0</span> voted</div>
+        <button id="btnRevealNow">Reveal now</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= REVEAL ================= -->
+  <section id="reveal" class="screen hidden">
+    <div class="card stack">
+      <div class="kicker" style="text-align:center">The truth was…</div>
+      <div class="fb-promptbig" id="revealPrompt">—</div>
+      <div id="revealChoices"></div>
+      <div class="winner" id="revealSummary" style="font-size:clamp(15px,2.4vw,20px)"></div>
+      <div class="row between" style="margin-top:8px">
+        <div class="kicker" id="revealProgress"></div>
+        <button id="btnNext">Next round</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FINAL ================= -->
+  <section id="final" class="screen hidden">
+    <div class="card stack hot">
+      <div class="kicker">Game over</div>
+      <h1 id="finalTitle">Final standings</h1>
+      <div class="podium" id="podium"></div>
+      <div class="lb" id="lb"></div>
+    </div>
+
+    <div class="card stack">
+      <div class="kicker">Awards for the night</div>
+      <div class="awards" id="awards"></div>
+    </div>
+
+    <div class="card">
+      <div class="row tight">
+        <button id="btnAgain">Play again</button>
+        <button class="ghost" id="btnHome">New room</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script src="/bus.js"></script>
+<script src="/ui.js"></script>
+<script src="/audio.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="/fb.js"></script>
+<script src="/fb-presenter.js"></script>
+</body>
+</html>

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rowdy Room — Fibbers' Court</title>
+<meta name="description" content="Rowdy Room: Fibbers' Court — write a believable fake answer, then vote for whichever one you think is real.">
+<meta name="theme-color" content="#05040e">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚖️</text></svg>">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .fb-promptbig {
+    font-size: clamp(18px, 4.4vw, 24px); font-weight: 800; line-height: 1.35;
+    letter-spacing: -0.01em; margin: 8px 0 12px;
+  }
+  .fb-answer-fill {
+    display: inline-block; color: var(--gold); font-weight: 800;
+    text-shadow: 0 0 18px rgba(255,210,63,0.45);
+    border-bottom: 2px dashed color-mix(in srgb, var(--gold) 60%, transparent);
+    padding: 0 2px;
+  }
+  .fakefield { margin-bottom: 4px; }
+  .fakefield input {
+    width: 100%; box-sizing: border-box;
+    font-family: var(--sans); font-size: 16px; color: var(--ink);
+    background: rgba(255,255,255,0.03); border: 1px solid var(--line); border-radius: 6px;
+    padding: 12px 14px;
+  }
+  .fakefield input:focus { outline: none; border-color: var(--accent); }
+  .fb-choice {
+    display: block; width: 100%; text-align: left; box-sizing: border-box;
+    padding: 16px 18px; border-radius: 6px; margin-bottom: 10px;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.03);
+    color: var(--ink); font-family: var(--sans);
+    font-size: 16px; font-weight: 700; line-height: 1.4;
+    letter-spacing: 0; text-transform: none; box-shadow: none;
+  }
+  .fb-choice[aria-pressed="true"] {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 18%, rgba(3,6,20,0.7));
+    box-shadow: 0 0 22px color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  .fb-choice.dimmed { opacity: 0.42; }
+  .fb-reveal-row {
+    border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; margin-bottom: 10px;
+    background: rgba(255,255,255,0.03);
+  }
+  .fb-reveal-row.real { border-color: color-mix(in srgb, #3dff9e 55%, var(--line)); background: color-mix(in srgb, #3dff9e 9%, rgba(3,6,20,0.7)); }
+  .fb-rr-tag { font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: 0.16em; margin-bottom: 5px; }
+  .fb-rr-text { font-weight: 700; font-size: 15px; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap narrow">
+
+  <div class="brandline">
+    <a class="brand" href="/" style="text-decoration:none"><span class="brand-rowdy">ROWDY</span> <span class="brand-room">ROOM</span> <span>// FIBBERS' COURT</span></a>
+    <div class="grow"></div>
+    <button class="ghost mini" id="btnSfx" title="Sound effects">Sound</button>
+    <span class="pill hidden" id="status" data-s="connecting"><i class="dot"></i><span class="txt">Connecting…</span></span>
+  </div>
+
+  <!-- ================= JOIN ================= -->
+  <section id="join" class="screen">
+    <div class="card stack hot">
+      <div class="kicker">Insert coin</div>
+      <h1>Join the game</h1>
+      <p>Grab the 4-character room code off the big screen.</p>
+      <div>
+        <label class="field" for="code">Room code</label>
+        <input type="text" id="code" maxlength="4" autocomplete="off" autocapitalize="characters"
+               spellcheck="false" placeholder="ABCD"
+               style="text-transform:uppercase;letter-spacing:.4em;font-size:28px;font-weight:700;text-align:center;font-family:var(--mono)">
+      </div>
+      <div>
+        <label class="field" for="name">Your name</label>
+        <input type="text" id="name" maxlength="18" autocomplete="off" placeholder="e.g. Aidan">
+      </div>
+      <button class="big" id="btnJoin">Join</button>
+      <p class="tiny">Hosting instead? <a href="present.html">Open the presenter screen</a>.</p>
+    </div>
+  </section>
+
+  <!-- ================= WAIT ================= -->
+  <section id="wait" class="screen hidden">
+    <div class="card stack hot">
+      <div class="kicker">Lobby</div>
+      <h1 id="waitHi">You're in!</h1>
+      <p class="tiny" id="waitMsg">Waiting for the host to start…</p>
+      <div class="players" id="waitPlayers"></div>
+    </div>
+    <div class="card">
+      <button class="ghost" id="btnLeave">Leave game</button>
+    </div>
+  </section>
+
+  <!-- ================= SUBMIT ================= -->
+  <section id="submit" class="screen hidden">
+    <div class="card stack hot">
+      <div class="row between">
+        <span class="qbanner" id="subBanner">Round 1 / 10</span>
+        <div class="count" id="subClock" style="font-size:26px"></div>
+      </div>
+      <div class="kicker">Fill in the blank</div>
+      <p class="fb-promptbig" id="subPromptText">—</p>
+      <div class="fakefield">
+        <input type="text" id="fakeInput" maxlength="60" autocomplete="off" placeholder="Write a believable fake answer…">
+      </div>
+      <button class="big" id="btnSendFake">Send my fake answer</button>
+      <div class="timerbar"><i id="subFill"></i></div>
+      <p class="tiny" id="subHint">Write a believable fake answer.</p>
+    </div>
+    <div class="card stack">
+      <div class="kicker">Who's answered</div>
+      <div class="players" id="subPlayers"></div>
+    </div>
+  </section>
+
+  <!-- ================= VOTE ================= -->
+  <section id="vote" class="screen hidden">
+    <div class="card stack">
+      <div class="row between">
+        <span class="qbanner" id="vBanner">—</span>
+        <div class="count" id="vClock" style="font-size:26px"></div>
+      </div>
+      <div class="kicker">Which one is real?</div>
+      <p class="fb-promptbig" id="vPromptText">—</p>
+      <div id="vGrid"></div>
+      <div class="timerbar"><i id="vFill"></i></div>
+      <p class="tiny" id="vHint">Tap the one you think is real.</p>
+    </div>
+  </section>
+
+  <!-- ================= ROUND RESULT ================= -->
+  <section id="result" class="screen hidden">
+    <div class="card stack">
+      <div class="kicker">The truth was…</div>
+      <p class="fb-promptbig" id="rPrompt">—</p>
+      <div id="rChoices"></div>
+      <div class="winner" id="rSummary" style="font-size:clamp(15px,3.4vw,19px)"></div>
+      <p class="tiny" id="rWait">Waiting for the host…</p>
+    </div>
+  </section>
+
+  <!-- ================= DONE ================= -->
+  <section id="done" class="screen hidden">
+    <div class="card stack hot">
+      <div class="kicker">Game over</div>
+      <h1>Final standings</h1>
+      <div class="podium" id="podium"></div>
+      <div class="lb" id="lb"></div>
+    </div>
+    <div class="card stack">
+      <div class="kicker">Awards for the night</div>
+      <div class="awards" id="awards"></div>
+    </div>
+  </section>
+
+</div>
+
+<div class="hostbar hidden" id="hostBar">
+  <span class="hlbl">Host</span>
+  <div class="row tight grow" id="hostBtns"></div>
+</div>
+
+<script src="/bus.js"></script>
+<script src="/ui.js"></script>
+<script src="/audio.js"></script>
+<script src="/fb-player.js"></script>
+</body>
+</html>
