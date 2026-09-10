@@ -148,7 +148,8 @@
     { slug: 'group-brain', name: 'Group Brain', emoji: '🧠' },
     { slug: 'doodle-chain', name: 'Doodle Chain', emoji: '🎨' },
     { slug: 'speed-sketch', name: 'Speed Sketch', emoji: '✏️' },
-    { slug: 'taboo-chain', name: 'Taboo Chain', emoji: '🤐' }
+    { slug: 'taboo-chain', name: 'Taboo Chain', emoji: '🤐' },
+    { slug: 'fibbers-court', name: "Fibbers' Court", emoji: '⚖️' }
   ];
 
   function gameInfo(slug) {
