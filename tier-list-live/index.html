@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rowdy Room — Tier List Live</title>
+<meta name="description" content="Rowdy Room: Tier List Live — privately rank items into tiers, then build one shared tier list with the room in real time.">
+<meta name="theme-color" content="#05040e">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏆</text></svg>">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .tl-lanes { display: grid; gap: 8px; margin: 8px 0; }
+  .tl-lane { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .tl-lane-label {
+    display: block; width: 100%; text-align: left;
+    font-family: var(--mono); font-weight: 800; font-size: 14px; letter-spacing: 0.1em;
+    padding: 8px 12px; color: var(--tc, var(--cyan));
+    background: color-mix(in srgb, var(--tc, var(--cyan)) 14%, transparent);
+    border: none; border-bottom: 1px solid color-mix(in srgb, var(--tc, var(--cyan)) 35%, transparent);
+  }
+  .tl-lane-btn { cursor: pointer; text-transform: none; box-shadow: none; }
+  .tl-lane-btn:active { transform: none; }
+  .tl-lane-items { display: flex; flex-wrap: wrap; gap: 7px; padding: 9px 10px; min-height: 38px; }
+  .tl-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 9px 12px; border-radius: 5px;
+    border: 1px solid var(--line); background: rgba(255,255,255,0.04);
+    color: var(--ink); font-family: var(--sans); font-size: 13px; font-weight: 700;
+    letter-spacing: 0; text-transform: none; box-shadow: none;
+  }
+  button.tl-pick { cursor: pointer; }
+  button.tl-pick.selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, rgba(3,6,20,0.7)); box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 35%, transparent); }
+  button.tl-pick.held { border-color: var(--lime); background: color-mix(in srgb, var(--lime) 20%, rgba(3,6,20,0.7)); }
+  button.tl-pick.claimed { opacity: 0.55; }
+  button.tl-pick.pending { opacity: 0.7; animation: tlpulse 0.6s ease-in-out infinite alternate; }
+  @keyframes tlpulse { from { opacity: 0.55; } to { opacity: 0.9; } }
+  .tl-claimtag { font-family: var(--mono); font-size: 9px; letter-spacing: 0.06em; color: var(--dimmer); text-transform: uppercase; }
+  #rankTray, #buildTrayMe { display: flex; flex-wrap: wrap; gap: 7px; padding: 9px 10px; border: 1px dashed var(--line); border-radius: 6px; min-height: 42px; margin-bottom: 8px; }
+  .tl-argue-item { font-size: clamp(18px,4.4vw,22px); font-weight: 800; margin: 6px 0; }
+  .tl-argue-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+  .tl-argue-btns button[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 20%, rgba(3,6,20,0.7)); }
+</style>
+</head>
+<body>
+<div class="wrap narrow">
+
+  <div class="brandline">
+    <a class="brand" href="/" style="text-decoration:none"><span class="brand-rowdy">ROWDY</span> <span class="brand-room">ROOM</span> <span>// TIER LIST LIVE</span></a>
+    <div class="grow"></div>
+    <button class="ghost mini" id="btnSfx" title="Sound effects">Sound</button>
+    <span class="pill hidden" id="status" data-s="connecting"><i class="dot"></i><span class="txt">Connecting…</span></span>
+  </div>
+
+  <!-- ================= JOIN ================= -->
+  <section id="join" class="screen">
+    <div class="card stack hot">
+      <div class="kicker">Insert coin</div>
+      <h1>Join the game</h1>
+      <p>Grab the 4-character room code off the big screen.</p>
+      <div>
+        <label class="field" for="code">Room code</label>
+        <input type="text" id="code" maxlength="4" autocomplete="off" autocapitalize="characters"
+               spellcheck="false" placeholder="ABCD"
+               style="text-transform:uppercase;letter-spacing:.4em;font-size:28px;font-weight:700;text-align:center;font-family:var(--mono)">
+      </div>
+      <div>
+        <label class="field" for="name">Your name</label>
+        <input type="text" id="name" maxlength="18" autocomplete="off" placeholder="e.g. Aidan">
+      </div>
+      <button class="big" id="btnJoin">Join</button>
+      <p class="tiny">Hosting instead? <a href="present.html">Open the presenter screen</a>.</p>
+    </div>
+  </section>
+
+  <!-- ================= WAIT ================= -->
+  <section id="wait" class="screen hidden">
+    <div class="card stack hot">
+      <div class="kicker">Lobby</div>
+      <h1 id="waitHi">You're in!</h1>
+      <p class="tiny" id="waitMsg">Waiting for the host to start…</p>
+      <div class="players" id="waitPlayers"></div>
+    </div>
+
+    <div class="card stack hidden" id="addBox">
+      <div class="kicker">Write your own</div>
+      <p style="margin-top:2px">Add something of your own for the room to rank — it gets shuffled into tonight's items.</p>
+      <div class="row tight">
+        <input type="text" id="myQ" class="grow" maxlength="60" autocomplete="off" aria-label="Your own item to add to the ranking"
+               placeholder="e.g. Socks with sandals" style="flex:1 1 180px">
+        <button id="btnAddQ">Add</button>
+      </div>
+      <div class="qlist" id="myQList"></div>
+      <p class="tiny" id="addHint"></p>
+    </div>
+
+    <div class="card">
+      <button class="ghost" id="btnLeave">Leave game</button>
+    </div>
+  </section>
+
+  <!-- ================= RANK (private) ================= -->
+  <section id="rank" class="screen hidden">
+    <div class="card stack hot">
+      <div class="row between">
+        <span class="qbanner" id="rankBanner">Round 1 / 3</span>
+        <div class="count" id="rankClock" style="font-size:26px"></div>
+      </div>
+      <div class="kicker">Rank these privately — nobody else sees your list</div>
+      <div class="timerbar"><i id="rankFill"></i></div>
+      <div class="kicker" style="margin-top:6px">Not placed yet — tap one, then tap a tier</div>
+      <div id="rankTray"></div>
+      <div class="tl-lanes" id="rankLanes"></div>
+      <button class="big" id="btnLockRankMe">Lock in my tiers</button>
+      <p class="tiny" id="rankHint">Tap an item, then tap a tier to place it.</p>
+    </div>
+  </section>
+
+  <!-- ================= BUILD (shared board) ================= -->
+  <section id="build" class="screen hidden">
+    <div class="card stack">
+      <div class="row between">
+        <span class="qbanner" id="buildBanner">Round 1 / 3</span>
+        <div class="count" id="buildClockMe" style="font-size:26px"></div>
+      </div>
+      <div class="kicker">Grab an item before someone else does</div>
+      <div class="kicker" style="margin-top:4px">Not placed yet</div>
+      <div id="buildTrayMe"></div>
+      <div class="tl-lanes" id="buildLanesMe"></div>
+      <button class="ghost hidden" id="btnReleaseMe">Put it back</button>
+      <button class="big" id="btnLockBuildMe">Lock it in</button>
+      <p class="tiny" id="buildHintMe"></p>
+    </div>
+  </section>
+
+  <!-- ================= ARGUE ================= -->
+  <section id="argue" class="screen hidden">
+    <div class="card stack hot" style="text-align:center">
+      <div class="row between">
+        <span class="qbanner" id="argueBanner">Round 1 / 3</span>
+        <div class="count" id="argueClockMe" style="font-size:26px"></div>
+      </div>
+      <div class="kicker">This one got fought over</div>
+      <div class="tl-argue-item" id="argueItemMe">—</div>
+      <p class="tiny">Currently in tier <b id="argueTierMe">C</b></p>
+      <div class="tl-argue-btns">
+        <button class="ghost" id="btnAgree" aria-pressed="false">Leave it</button>
+        <button id="btnMovedown" aria-pressed="false">Bump it down</button>
+      </div>
+      <p class="tiny" id="argueHint" style="margin-top:8px"></p>
+    </div>
+  </section>
+
+  <!-- ================= ROUND RESULT ================= -->
+  <section id="result" class="screen hidden">
+    <div class="card stack">
+      <span class="qbanner" id="rBanner">—</span>
+      <div class="kicker">Where things landed</div>
+      <div class="tl-lanes" id="rLanes"></div>
+      <p class="winner" id="rArgueNote" style="font-size:clamp(13px,3.4vw,16px)"></p>
+      <div class="kicker">Points this round</div>
+      <div class="players" id="rScores"></div>
+      <p class="tiny" id="rWait">Waiting for the host…</p>
+    </div>
+  </section>
+
+  <!-- ================= DONE ================= -->
+  <section id="done" class="screen hidden">
+    <div class="card stack hot">
+      <div class="kicker">Game over</div>
+      <h1>Final standings</h1>
+      <div class="podium" id="podium"></div>
+      <div class="lb" id="lb"></div>
+    </div>
+    <div class="card stack">
+      <div class="kicker">Awards for the night</div>
+      <div class="awards" id="awards"></div>
+      <p class="tiny" id="mostContestedMe" style="margin-top:6px"></p>
+    </div>
+  </section>
+
+</div>
+
+<div class="hostbar hidden" id="hostBar">
+  <span class="hlbl">Host</span>
+  <div class="row tight grow" id="hostBtns"></div>
+</div>
+
+<script src="/bus.js"></script>
+<script src="/ui.js"></script>
+<script src="/audio.js"></script>
+<script src="/tl.js"></script>
+<script src="/tl-player.js"></script>
+</body>
+</html>

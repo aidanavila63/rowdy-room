@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Presenter · Tier List Live · Rowdy Room</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏆</text></svg>">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .tl-itembig {
+    font-size: clamp(15px, 2vw, 18px); font-weight: 700; padding: 12px 16px;
+    border: 1px solid var(--line); border-radius: 6px; background: rgba(255,255,255,0.03);
+    margin-bottom: 8px;
+  }
+  .tl-lanes { display: grid; gap: 10px; margin: 10px 0; }
+  .tl-lane { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .tl-lane-label {
+    font-family: var(--mono); font-weight: 800; font-size: 15px; letter-spacing: 0.1em;
+    padding: 8px 14px; color: var(--tc, var(--cyan));
+    background: color-mix(in srgb, var(--tc, var(--cyan)) 14%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--tc, var(--cyan)) 35%, transparent);
+  }
+  .tl-lane-items { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 12px; min-height: 40px; }
+  .tl-chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 8px 12px; border-radius: 5px;
+    border: 1px solid var(--line); background: rgba(255,255,255,0.04);
+    color: var(--ink); font-family: var(--sans); font-size: 13.5px; font-weight: 700;
+  }
+  .tl-chip.claimed { border-color: color-mix(in srgb, var(--gold) 55%, var(--line)); background: color-mix(in srgb, var(--gold) 12%, rgba(3,6,20,0.7)); opacity: 0.85; }
+  .tl-claimtag { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.08em; color: var(--dimmer); text-transform: uppercase; }
+  #buildTray { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 6px; min-height: 46px; }
+  .tl-argue-box { text-align: center; padding: 10px; }
+  .tl-argue-item { font-size: clamp(18px,3vw,24px); font-weight: 800; margin: 8px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="brandline">
+    <a class="brand" href="/" style="text-decoration:none"><span class="brand-rowdy">ROWDY</span> <span class="brand-room">ROOM</span> <span>// TIER LIST LIVE · PRESENTER</span></a>
+    <div class="grow"></div>
+    <button class="ghost mini" id="btnMusic" title="Background music">♪ Music</button>
+    <button class="ghost mini" id="btnSfx" title="Sound effects">Sound</button>
+    <span class="pill hidden" id="status" data-s="connecting"><i class="dot"></i><span class="txt">Connecting…</span></span>
+  </div>
+
+  <!-- ================= START ================= -->
+  <section id="start" class="screen">
+    <div class="card stack hot" style="text-align:center">
+      <div class="kicker">Presenter</div>
+      <h1>Tier List Live</h1>
+      <p style="max-width:48ch;margin:6px auto 14px">Everyone privately ranks the same items into S/A/B/C tiers, then the room builds one shared tier list together in real time — grab an item before someone else does. Score for how close your private list landed to where the group ends up.</p>
+      <button class="big" id="btnCreate">Create new room</button>
+      <button class="ghost hidden" id="btnResume">Resume last room</button>
+      <p class="tiny" id="startHint" style="margin-top:2px"></p>
+    </div>
+  </section>
+
+  <!-- ================= LOBBY ================= -->
+  <section id="lobby" class="screen">
+    <div class="card codebox stack hot">
+      <div class="kicker">Join at</div>
+      <div class="joinurl" id="joinUrl">—</div>
+      <div class="kicker" style="margin-top:10px">Room code</div>
+      <div class="codetiles" id="codeText"></div>
+      <div id="qr"></div>
+    </div>
+
+    <div class="card stack">
+      <div class="row between">
+        <h2>Players <span class="muted" id="pcount">(0)</span></h2>
+        <div class="row tight">
+          <span class="badge hidden" id="roomQBadge">🎤 <span id="roomQCount">0</span> from the room</span>
+          <button class="ghost mini" id="btnRoomQ">See them</button>
+          <button class="ghost mini" id="btnSettings">Settings</button>
+        </div>
+      </div>
+      <div class="players" id="lobbyPlayers"></div>
+      <p class="tiny" id="lobbyHint">Waiting for people to join…</p>
+      <div class="row tight" id="hostPick">
+        <span class="kicker">Host remote</span>
+        <div class="row tight grow" id="hostPickBtns"></div>
+      </div>
+      <p class="tiny" id="hostPickHint"></p>
+      <div class="qlist hidden" id="roomQList"></div>
+      <button class="big" id="btnStart" disabled>Start game</button>
+    </div>
+
+    <div class="card stack hidden" id="settings">
+      <h3>Game settings</h3>
+      <div class="row">
+        <div class="grow">
+          <label class="field" for="rounds">Rounds</label>
+          <select id="rounds">
+            <option>2</option><option selected>3</option><option>4</option><option>5</option>
+          </select>
+        </div>
+        <div class="grow">
+          <label class="field" for="secs">Seconds to privately rank</label>
+          <select id="secs">
+            <option>30</option><option>45</option><option selected>60</option>
+            <option>90</option><option>120</option><option value="0">No timer</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <div class="row between" style="margin-bottom:7px">
+          <label class="field" style="margin:0">Item packs</label>
+          <div class="row tight">
+            <button class="ghost mini" id="packAll">All</button>
+            <button class="ghost mini" id="packNone">None</button>
+          </div>
+        </div>
+        <div class="packs" id="packs"></div>
+        <p class="tiny" id="qcount" style="margin-top:8px"></p>
+      </div>
+      <div>
+        <label class="field" for="custom">Your own items to rank (one per line)</label>
+        <textarea id="custom" placeholder="Wet socks&#10;Reply-all emails"></textarea>
+      </div>
+      <label class="row tiny" style="gap:7px"><input type="checkbox" id="allowAdd" checked> Let players add items from their phones</label>
+      <p class="tiny">Each round: everyone privately ranks 6 items into S/A/B/C on their own phone, then the room builds one shared board together — tap to grab an item, tap a tier to drop it. Whatever gets fought over most gets one live argue-and-vote before scoring.</p>
+    </div>
+  </section>
+
+  <!-- ================= RANK (private, phone-only interaction) ================= -->
+  <section id="rank" class="screen hidden">
+    <div class="card stack">
+      <div class="row between">
+        <span class="qbanner" id="rankProgress">Round 1 / 3</span>
+        <div class="count" id="clock">60</div>
+      </div>
+      <div class="kicker" style="text-align:center;margin-top:6px">Everyone's privately ranking these on their phone</div>
+      <div id="rankItemsBig" style="margin-top:8px"></div>
+      <div class="timerbar"><i id="timerFill"></i></div>
+      <div class="row between">
+        <div class="kicker"><span id="rankCount">0</span> / <span id="rankTotal">0</span> have ranked</div>
+        <div class="row tight">
+          <button class="ghost mini" id="btnMinus" title="Shorten this and future rounds">−5s</button>
+          <button class="ghost mini" id="btnPlus" title="Lengthen this and future rounds">+5s</button>
+          <button class="ghost mini" id="btnNoTimer" title="Turn the countdown on or off">No timer</button>
+          <span class="tiny" id="secsNow"></span>
+        </div>
+        <button id="btnLockRank">Lock it in for everyone</button>
+      </div>
+      <div class="players" id="rankPlayers"></div>
+    </div>
+  </section>
+
+  <!-- ================= BUILD (shared board) ================= -->
+  <section id="build" class="screen hidden">
+    <div class="card stack">
+      <div class="row between">
+        <span class="qbanner" id="buildProgress">Round 1 / 3</span>
+        <div class="count" id="buildClock">90</div>
+      </div>
+      <div class="kicker" style="text-align:center;margin-top:6px">The room builds this together — watch it happen live</div>
+      <div class="timerbar"><i id="buildFill"></i></div>
+      <div class="tl-lanes" id="buildLanes"></div>
+      <div class="kicker">Not placed yet</div>
+      <div id="buildTray"></div>
+      <div class="row between" style="margin-top:6px">
+        <p class="tiny" id="buildHint" style="margin:0"></p>
+        <button id="btnLockBoard" title="Force the board to lock right now, even if not everyone's locked in">Lock the board now</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ARGUE ================= -->
+  <section id="argue" class="screen hidden">
+    <div class="card stack tl-argue-box">
+      <div class="row between">
+        <span class="kicker">This one got fought over</span>
+        <div class="count" id="argueClock">20</div>
+      </div>
+      <div class="tl-argue-item" id="argueItemText">—</div>
+      <p class="tiny">Currently sitting in tier <b id="argueTierNow">C</b>. Make your case out loud — then the room votes.</p>
+      <div class="timerbar"><i id="argueFill"></i></div>
+      <div class="kicker"><span id="argueCount">0</span> / <span id="argueTotal">0</span> voted</div>
+      <button id="btnResolveArgue">Resolve now</button>
+    </div>
+  </section>
+
+  <!-- ================= REVEAL ================= -->
+  <section id="reveal" class="screen hidden">
+    <div class="card stack">
+      <div class="kicker">Round result</div>
+      <div class="tl-lanes" id="revealLanes"></div>
+      <p class="winner" id="revealArgueNote" style="font-size:clamp(14px,2vw,17px)"></p>
+      <div class="kicker">Points this round</div>
+      <div class="players" id="revealScores"></div>
+      <div class="row between" style="margin-top:8px">
+        <div class="kicker" id="revealProgress"></div>
+        <button id="btnNext">Next round</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FINAL ================= -->
+  <section id="final" class="screen hidden">
+    <div class="card stack hot">
+      <div class="kicker">Game over</div>
+      <h1 id="finalTitle">Final standings</h1>
+      <div class="podium" id="podium"></div>
+      <div class="lb" id="lb"></div>
+    </div>
+
+    <div class="card stack">
+      <div class="kicker">Awards for the night</div>
+      <div class="awards" id="awards"></div>
+      <p class="tiny" id="mostContested" style="margin-top:6px"></p>
+    </div>
+
+    <div class="card">
+      <div class="row tight">
+        <button id="btnAgain">Play again</button>
+        <button class="ghost" id="btnHome">New room</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script src="/bus.js"></script>
+<script src="/ui.js"></script>
+<script src="/audio.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="/tl.js"></script>
+<script src="/tl-presenter.js"></script>
+</body>
+</html>
