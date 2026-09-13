@@ -15,6 +15,7 @@
   var soundedReveal = -1;
 
   var mySecretItem = null, mySecretRound = -1;
+  var myQs = [];
 
   var urlCode = (MLT.qs('r') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
   $('#code').value = urlCode || me.code || '';
@@ -50,7 +51,32 @@
   }
 
   function sayHello() {
-    if (bus) bus.send({ t: 'hello', from: me.id, name: me.name });
+    if (bus) bus.send({ t: 'hello', from: me.id, name: me.name, emoji: MLT.avatarPref().emoji, color: MLT.avatarPref().color });
+  }
+
+  function addPhrase() {
+    var text = ($('#myQ').value || '').trim().slice(0, 90);
+    if (text.indexOf(':') < 0) { MLT.toast('Format: PHRASE: taboo one, taboo two, taboo three'); return; }
+    if (myQs.length >= 8) { MLT.toast('8 is plenty — let someone else have a go'); return; }
+    myQs.push(text);
+    bus.send({ t: 'phrase', from: me.id, text: text });
+    $('#myQ').value = '';
+    renderMyQs();
+    MLT.toast('Added to the pile');
+  }
+
+  function renderMyQs() {
+    var list = $('#myQList');
+    if (!list) return;
+    list.innerHTML = '';
+    myQs.forEach(function (t) {
+      list.appendChild(el('div', { class: 'qitem' }, [el('span', { text: t })]));
+    });
+    var hint = $('#addHint');
+    if (hint) {
+      hint.textContent = (S && S.roomQ ? S.roomQ + ' phrase' + (S.roomQ === 1 ? '' : 's') + ' from the room so far. ' : '') +
+        (myQs.length ? "You've added " + myQs.length + '.' : '');
+    }
   }
 
   /* ------------------------------------------------------------------ */
@@ -59,7 +85,8 @@
     clearInterval(clockTimer);
     if (bus) { bus.close(); bus = null; }
     S = null; lastSeq = -1; seenRound = -1; soundedReveal = -1;
-    mySecretItem = null; mySecretRound = -1;
+    mySecretItem = null; mySecretRound = -1; myQs = [];
+    if ($('#myQList')) $('#myQList').innerHTML = '';
     A.sfx('bye');
     $('#status').classList.add('hidden');
     $('#hostBar').classList.add('hidden');
@@ -72,6 +99,7 @@
   var leaving = false;
   function onMessage(m) {
     if (MLT.handleAdvance(m, me.name)) return;
+    if (MLT.handleLobbyPoll(m, function (v) { if (bus) bus.send(v); })) return;
     if (m.t === 'closed') { roomClosed(); return; }
     if (m.t === 'secret') {
       if (m.to === me.id) { mySecretItem = { phrase: m.phrase, taboo: m.taboo }; mySecretRound = m.round; render(); }
@@ -182,12 +210,14 @@
     box.innerHTML = '';
     (S ? S.players : []).forEach(function (p, i) {
       box.appendChild(el('span', { class: 'chip' }, [
-        avatar(p.name, i), el('span', { text: p.name + (p.id === me.id ? ' (you)' : '') })
+        avatar(p.name, i, null, p), el('span', { text: p.name + (p.id === me.id ? ' (you)' : '') })
       ]));
     });
     $('#waitMsg').textContent = (S && S.players.length < 3)
       ? 'Waiting for more players… you need at least 3.'
       : 'Waiting for the host to start…';
+    if ($('#addBox')) $('#addBox').classList.toggle('hidden', !(S && S.canAdd));
+    renderMyQs();
   }
 
   function renderClueFeed(node, clues) {
@@ -385,6 +415,7 @@
   });
   A.onChange(function (s) { $('#btnSfx').classList.toggle('off', !s.sfx); });
   $('#btnJoin').addEventListener('click', join);
+  if ($('#btnAddQ')) $('#btnAddQ').addEventListener('click', addPhrase);
   $('#name').addEventListener('keydown', function (e) { if (e.key === 'Enter') join(); });
   $('#code').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('#name').focus(); });
   $('#btnClue').addEventListener('click', submitClue);

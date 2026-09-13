@@ -136,9 +136,28 @@
   /* ------------------------------------------------------------------ */
   /* the bus                                                             */
   /* ------------------------------------------------------------------ */
+  /* Every game lives at /<slug>/..., so the slug doubles as a reliable,
+     zero-config way to keep each game's messages on their own topic even
+     when a persistent lobby reuses the same room code across several games
+     back to back. Without this, a game that ends leaves its last state
+     message retained on the broker under that room code; the next game to
+     reuse the code would have that stale message handed straight to any
+     phone that (re)subscribes — and since it carries an old, unrelated
+     sequence number, it can permanently block every real update after it
+     (the receiving side's replay guard treats the new game's low sequence
+     numbers as "already seen"). Scoping the topic by slug means a new game
+     always starts on a topic nobody has ever published to. */
+  function gameSlug() {
+    try {
+      var seg = (global.location.pathname.split('/')[1] || '').toLowerCase();
+      return seg.replace(/[^a-z0-9-]/g, '');
+    } catch (e) { return ''; }
+  }
+
   function createBus(opts) {
     var code = String(opts.code || '').toLowerCase();
-    var base = PREFIX + code;
+    var slug = opts.game ? String(opts.game).toLowerCase() : gameSlug();
+    var base = PREFIX + code + (slug ? '/' + slug : '');
     var host = opts.role === 'host';
     var subTopic = base + (host ? '/i' : '/s');
     var pubTopic = base + (host ? '/s' : '/i');
@@ -176,7 +195,7 @@
 
     /* ---- BroadcastChannel mode (local testing) ---- */
     if (mode === 'bc') {
-      bc = new global.BroadcastChannel('mlt-' + code);
+      bc = new global.BroadcastChannel('mlt-' + code + (slug ? '-' + slug : ''));
       bc.onmessage = function (ev) {
         var m = ev.data;
         if (!m || m.__to !== subTopic) return;

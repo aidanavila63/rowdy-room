@@ -192,7 +192,7 @@
   function publicState() {
     var s = {
       phase: G.phase,
-      players: G.players.map(function (p) { return { id: p.id, name: p.name }; }),
+      players: G.players.map(function (p) { return { id: p.id, name: p.name, emoji: p.emoji, color: p.color }; }),
       host: G.host || null,
       N: G.N
     };
@@ -255,9 +255,11 @@
       var p = playerById(m.from);
       if (p) {
         if (p.name !== m.name) p.name = String(m.name).slice(0, 18);
+        if (m.emoji !== undefined) p.emoji = m.emoji;
+        if (m.color !== undefined) p.color = m.color;
       } else {
         if (G.players.length >= 10) return;
-        G.players.push({ id: m.from, name: String(m.name).slice(0, 18) });
+        G.players.push({ id: m.from, name: String(m.name).slice(0, 18), emoji: m.emoji || '', color: m.color || '' });
         A.sfx('join');
       }
       save(); renderAll(); broadcast(true);
@@ -537,7 +539,7 @@
     var box = $('#lobbyPlayers');
     box.innerHTML = '';
     G.players.forEach(function (p, i) {
-      var kids = [avatar(p.name, i), el('span', { text: p.name })];
+      var kids = [avatar(p.name, i, null, p), el('span', { text: p.name })];
       if (G.host === p.id) kids.push(el('span', { class: 'tag', text: '· remote' }));
       box.appendChild(el('span', { class: 'chip' + (G.host === p.id ? ' remote' : '') }, kids));
     });
@@ -632,7 +634,7 @@
     if (spectators.length) {
       specBox.appendChild(el('span', { class: 'tiny', text: 'Watching (joining next game): ' }));
       spectators.forEach(function (p, i) {
-        specBox.appendChild(el('span', { class: 'chip' }, [avatar(p.name, i), el('span', { text: p.name })]));
+        specBox.appendChild(el('span', { class: 'chip' }, [avatar(p.name, i, null, p), el('span', { text: p.name })]));
       });
     }
   }
@@ -702,7 +704,7 @@
   }
 
   function renderFinal() {
-    MLT.renderPlaylistCTA({ playlist: PLAYLIST, code: G.code, send: function (m) { if (bus) bus.send(m); } });
+    MLT.renderPlaylistCTA({ playlist: PLAYLIST, code: G.code, players: G.players, bus: bus, send: function (m) { if (bus) bus.send(m); } });
     document.documentElement.style.setProperty('--accent', ACCENT);
     var chain = G.winnerChain || G.chains[G.winnerIdx] || [];
     var n = (G.voteCounts && G.voteCounts[G.winnerIdx]) || 0;

@@ -51,7 +51,7 @@
   }
 
   function sayHello() {
-    if (bus) bus.send({ t: 'hello', from: me.id, name: me.name });
+    if (bus) bus.send({ t: 'hello', from: me.id, name: me.name, emoji: MLT.avatarPref().emoji, color: MLT.avatarPref().color });
   }
 
   /* ------------------------------------------------------------------ */
@@ -72,6 +72,7 @@
   var leaving = false;
   function onMessage(m) {
     if (MLT.handleAdvance(m, me.name)) return;
+    if (MLT.handleLobbyPoll(m, function (v) { if (bus) bus.send(v); })) return;
     if (m.t === 'closed') { roomClosed(); return; }
     if (m.t === 'tooclose' && m.to === me.id) {
       MLT.toast("That's too close to the real answer — try another fake");
@@ -165,7 +166,7 @@
     box.innerHTML = '';
     (S ? S.players : []).forEach(function (p, i) {
       box.appendChild(el('span', { class: 'chip' }, [
-        avatar(p.name, i), el('span', { text: p.name + (p.id === me.id ? ' (you)' : '') })
+        avatar(p.name, i, null, p), el('span', { text: p.name + (p.id === me.id ? ' (you)' : '') })
       ]));
     });
     $('#waitMsg').textContent = S.players.length < 3
@@ -191,7 +192,7 @@
     S.players.forEach(function (p, i) {
       var done = (S.submitted || []).indexOf(p.id) >= 0;
       box.appendChild(el('span', { class: 'chip' + (done ? ' voted' : '') }, [
-        avatar(p.name, i), el('span', { text: p.name + (p.id === me.id ? ' (you)' : '') })
+        avatar(p.name, i, null, p), el('span', { text: p.name + (p.id === me.id ? ' (you)' : '') })
       ]));
     });
   }

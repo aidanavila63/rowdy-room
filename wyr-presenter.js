@@ -161,7 +161,7 @@
     var s = {
       phase: G.phase, round: G.round, total: G.total,
       a: q.a, b: q.b, chain: q.chain, endsAt: G.endsAt, secs: G.secs,
-      players: G.players.map(function (p) { return { id: p.id, name: p.name, pts: p.pts }; }),
+      players: G.players.map(function (p) { return { id: p.id, name: p.name, pts: p.pts, emoji: p.emoji, color: p.color }; }),
       showVoters: !!G.showVoters,
       host: G.host || null
     };
@@ -236,9 +236,11 @@
       var p = playerById(m.from);
       if (p) {
         if (p.name !== m.name) p.name = String(m.name).slice(0, 18);
+        if (m.emoji !== undefined) p.emoji = m.emoji;
+        if (m.color !== undefined) p.color = m.color;
       } else {
         if (G.players.length >= 10) return;
-        G.players.push({ id: m.from, name: String(m.name).slice(0, 18), pts: 0 });
+        G.players.push({ id: m.from, name: String(m.name).slice(0, 18), pts: 0, emoji: m.emoji || '', color: m.color || '' });
         A.sfx('join');
       }
       save(); renderAll(); broadcast(true);
@@ -499,7 +501,7 @@
     var box = $('#lobbyPlayers');
     box.innerHTML = '';
     G.players.forEach(function (p, i) {
-      var kids = [avatar(p.name, i), el('span', { text: p.name })];
+      var kids = [avatar(p.name, i, null, p), el('span', { text: p.name })];
       if (G.host === p.id) kids.push(el('span', { class: 'tag', text: '· remote' }));
       box.appendChild(el('span', { class: 'chip' + (G.host === p.id ? ' remote' : '') }, kids));
     });
@@ -555,7 +557,7 @@
     box.innerHTML = '';
     G.players.forEach(function (p, i) {
       box.appendChild(el('span', { class: 'chip' + (G.votes[p.id] ? ' voted' : '') }, [
-        avatar(p.name, i), el('span', { text: p.name })
+        avatar(p.name, i, null, p), el('span', { text: p.name })
       ]));
     });
   }
@@ -620,7 +622,7 @@
   }
 
   function renderFinal() {
-    MLT.renderPlaylistCTA({ playlist: PLAYLIST, code: G.code, send: function (m) { if (bus) bus.send(m); } });
+    MLT.renderPlaylistCTA({ playlist: PLAYLIST, code: G.code, players: G.players, bus: bus, send: function (m) { if (bus) bus.send(m); }, awards: computeAwards() });
     var sorted = G.players.slice().sort(function (a, b) { return b.pts - a.pts; });
     renderPodium($('#podium'), sorted);
 

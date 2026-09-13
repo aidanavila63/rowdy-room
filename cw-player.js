@@ -55,7 +55,7 @@
   }
 
   function sayHello() {
-    if (bus) bus.send({ t: 'hello', from: me.id, name: me.name });
+    if (bus) bus.send({ t: 'hello', from: me.id, name: me.name, emoji: MLT.avatarPref().emoji, color: MLT.avatarPref().color });
   }
 
   /* ------------------------------------------------------------------ */
@@ -76,6 +76,7 @@
   var leaving = false;
   function onMessage(m) {
     if (MLT.handleAdvance(m, me.name)) return;
+    if (MLT.handleLobbyPoll(m, function (v) { if (bus) bus.send(v); })) return;
     if (m.t === 'closed') { roomClosed(); return; }
     if (m.t !== 'state') return;
     if (typeof m.seq === 'number' && m.seq <= lastSeq) return;
@@ -156,7 +157,7 @@
     box.innerHTML = '';
     (S ? S.players : []).forEach(function (p, i) {
       box.appendChild(el('span', { class: 'chip' }, [
-        avatar(p.name, i), el('span', { text: p.name + (p.id === me.id ? ' (you)' : '') })
+        avatar(p.name, i, null, p), el('span', { text: p.name + (p.id === me.id ? ' (you)' : '') })
       ]));
     });
     $('#waitMsg').textContent = (S && S.players.length < 2)

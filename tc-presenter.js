@@ -12,6 +12,7 @@
       code: randomCode(), seq: 0, phase: 'lobby',
       secs: 75, totalRounds: 8,
       packs: MLT.TC_PACKS.map(function (p) { return p.id; }),
+      roomQ: [], allowAdd: true,
       players: [], order: [], N: 0,
       round: 0, clueGiverId: null, item: null, usedPhrases: [],
       liveClues: [], guessed: {}, guessOrder: [],
@@ -23,6 +24,8 @@
   var saved = MLT.store(SAVE);
   var G = saved || blankGame();
   if (!G.packs || !G.packs.length) G.packs = MLT.TC_PACKS.map(function (p) { return p.id; });
+  if (!G.roomQ) G.roomQ = [];
+  if (G.allowAdd === undefined) G.allowAdd = true;
   if (!G.order) G.order = [];
   if (!G.usedPhrases) G.usedPhrases = [];
   if (!G.liveClues) G.liveClues = [];
@@ -175,8 +178,38 @@
     return pool;
   }
 
+  /* Host and room submissions share one compact format so both go through
+     the same parser: "PHRASE: taboo one, taboo two, taboo three". Fewer
+     than three taboo words is fine (they're a bonus, not a requirement);
+     anything past three is dropped. A line with no colon is skipped. */
+  function parsePhraseLine(line) {
+    var i = line.indexOf(':');
+    if (i < 0) return null;
+    var phrase = line.slice(0, i).trim().toUpperCase();
+    if (phrase.length < 2) return null;
+    var taboo = line.slice(i + 1).split(',')
+      .map(function (s) { return s.trim().toUpperCase(); })
+      .filter(function (s) { return s.length; })
+      .slice(0, 3);
+    return { phrase: phrase, taboo: taboo };
+  }
+
+  function customItems() {
+    var box = $('#custom');
+    if (!box) return [];
+    return (box.value || '').split('\n')
+      .map(parsePhraseLine)
+      .filter(Boolean);
+  }
+
+  function ownItems() {
+    var own = customItems().slice();
+    G.roomQ.forEach(function (q) { if (q.item) own.push(q.item); });
+    return own;
+  }
+
   function pickItem() {
-    var pool = poolFromPacks();
+    var pool = poolFromPacks().concat(ownItems());
     if (!pool.length) return { phrase: 'MYSTERY', taboo: ['UNKNOWN', 'SECRET', 'HIDDEN'] };
     var avail = pool.filter(function (it) { return G.usedPhrases.indexOf(it.phrase) < 0; });
     if (!avail.length) { G.usedPhrases = []; avail = pool.slice(); }
@@ -188,11 +221,14 @@
   function publicState() {
     var s = {
       phase: G.phase,
-      players: G.players.map(function (p) { return { id: p.id, name: p.name, pts: p.pts }; }),
+      players: G.players.map(function (p) { return { id: p.id, name: p.name, pts: p.pts, emoji: p.emoji, color: p.color }; }),
       host: G.host || null,
       N: G.N
     };
-    if (G.phase === 'clue') {
+    if (G.phase === 'lobby') {
+      s.canAdd = !!G.allowAdd;
+      s.roomQ = G.roomQ.length;
+    } else if (G.phase === 'clue') {
       s.round = G.round; s.totalRounds = G.totalRounds;
       s.clueGiverId = G.clueGiverId;
       s.secs = G.secs; s.endsAt = G.endsAt;
@@ -242,9 +278,11 @@
       var p = playerById(m.from);
       if (p) {
         if (p.name !== m.name) p.name = String(m.name).slice(0, 18);
+        if (m.emoji !== undefined) p.emoji = m.emoji;
+        if (m.color !== undefined) p.color = m.color;
       } else {
         if (G.players.length >= 10) return;
-        G.players.push({ id: m.from, name: String(m.name).slice(0, 18), pts: 0 });
+        G.players.push({ id: m.from, name: String(m.name).slice(0, 18), pts: 0, emoji: m.emoji || '', color: m.color || '' });
         A.sfx('join');
       }
       save(); renderAll(); broadcast(true);
@@ -258,13 +296,25 @@
         A.sfx('bye'); save(); renderAll(); broadcast(true);
       }
 
+    } else if (m.t === 'phrase') {
+      if (G.phase !== 'lobby' || !G.allowAdd) return;
+      var parsed = parsePhraseLine(String(m.text || '').slice(0, 90));
+      if (!parsed || parsed.phrase.length < 2) return;
+      if (G.roomQ.length >= 80) return;
+      var mine = G.roomQ.filter(function (q) { return q.by === m.from; }).length;
+      if (mine >= 8) return;
+      if (G.roomQ.some(function (q) { return q.item && q.item.phrase === parsed.phrase; })) return;
+      G.roomQ.push({ t: parsed.phrase, item: parsed, by: m.from });
+      A.sfx('blip');
+      save(); renderLobby(); broadcast(false);
+
     } else if (m.t === 'cmd') {
       if (!G.host || m.from !== G.host) return;
       if (!(m.n > G.lastCmd)) return;
       G.lastCmd = m.n;
       save();
       var d = m.do;
-      if (d === 'start') { if (G.phase === 'lobby' && G.players.length >= 3 && poolFromPacks().length >= 1) startGame(); }
+      if (d === 'start') { if (G.phase === 'lobby' && G.players.length >= 3 && poolFromPacks().length + ownItems().length >= 1) startGame(); }
       else if (d === 'skip') { if (G.phase === 'clue') doReveal(); }
       else if (d === 'timer+') { if (G.phase === 'clue') adjustTimer(5); }
       else if (d === 'timer-') { if (G.phase === 'clue') adjustTimer(-5); }
@@ -526,19 +576,38 @@
     var box = $('#lobbyPlayers');
     box.innerHTML = '';
     G.players.forEach(function (p, i) {
-      var kids = [avatar(p.name, i), el('span', { text: p.name })];
+      var kids = [avatar(p.name, i, null, p), el('span', { text: p.name })];
       if (G.host === p.id) kids.push(el('span', { class: 'tag', text: '· remote' }));
       box.appendChild(el('span', { class: 'chip' + (G.host === p.id ? ' remote' : '') }, kids));
     });
     renderHostPick();
     $('#pcount').textContent = '(' + G.players.length + ')';
-    var avail = poolFromPacks().length;
+    var avail = poolFromPacks().length + ownItems().length;
     $('#btnStart').disabled = G.players.length < 3 || avail < 1;
     $('#lobbyHint').textContent = G.players.length < 3
       ? 'Waiting for people to join… you need at least 3 — one to give clues, at least two to guess.'
       : avail < 1
-        ? 'Pick at least one phrase pack in Settings.'
+        ? 'Pick at least one phrase pack, or add your own, in Settings.'
         : 'Everyone in? Hit start.';
+    var roomQCount = $('#roomQCount');
+    if (roomQCount) {
+      roomQCount.textContent = G.roomQ.length;
+      $('#roomQBadge').classList.toggle('hidden', !G.roomQ.length);
+      $('#btnRoomQ').classList.toggle('hidden', !G.roomQ.length);
+      var list = $('#roomQList');
+      if (!list.classList.contains('hidden')) {
+        list.innerHTML = '';
+        G.roomQ.forEach(function (q, i) {
+          list.appendChild(el('div', { class: 'qitem' }, [
+            el('span', { text: q.t }),
+            el('button', {
+              class: 'ghost mini danger', text: '✕',
+              onclick: function () { G.roomQ.splice(i, 1); save(); renderLobby(); broadcast(true); }
+            })
+          ]));
+        });
+      }
+    }
     renderPacks();
   }
 
@@ -588,10 +657,10 @@
         el('span', { class: 'n', text: String(p.items.length) })
       ]));
     });
-    var avail = poolFromPacks().length;
+    var avail = poolFromPacks().length + ownItems().length;
     $('#qcount').textContent = avail
       ? avail + ' phrase' + (avail === 1 ? '' : 's') + ' ready' + (G.packs.length ? ' · ' + G.packs.length + ' pack' + (G.packs.length > 1 ? 's' : '') : '')
-      : 'Pick at least one pack.';
+      : 'Pick at least one pack, or add your own.';
   }
 
   function renderClue() {
@@ -621,11 +690,11 @@
     G.players.forEach(function (p, i) {
       if (p.id === G.clueGiverId) {
         box.appendChild(el('span', { class: 'chip', style: 'border-color:var(--lime);box-shadow:0 0 14px rgba(182,255,59,0.3)' }, [
-          avatar(p.name, i), el('span', { text: p.name }), el('span', { class: 'tag', text: '· clues' })
+          avatar(p.name, i, null, p), el('span', { text: p.name }), el('span', { class: 'tag', text: '· clues' })
         ]));
       } else {
         box.appendChild(el('span', { class: 'chip' + (G.guessed[p.id] !== undefined ? ' voted' : '') }, [
-          avatar(p.name, i), el('span', { text: p.name })
+          avatar(p.name, i, null, p), el('span', { text: p.name })
         ]));
       }
     });
@@ -696,7 +765,7 @@
   }
 
   function renderFinal() {
-    MLT.renderPlaylistCTA({ playlist: PLAYLIST, code: G.code, send: function (m) { if (bus) bus.send(m); } });
+    MLT.renderPlaylistCTA({ playlist: PLAYLIST, code: G.code, players: G.players, bus: bus, send: function (m) { if (bus) bus.send(m); }, awards: computeAwards() });
     document.documentElement.style.setProperty('--accent', '#3dff9e');
     var sorted = G.players.slice().sort(function (a, b) { return b.pts - a.pts; });
     renderPodium($('#podium'), sorted);
@@ -751,6 +820,19 @@
     save(); renderPacks(); renderLobby();
   });
   $('#packNone').addEventListener('click', function () { G.packs = []; save(); renderPacks(); renderLobby(); });
+  if ($('#custom')) $('#custom').addEventListener('input', function () { renderPacks(); renderLobby(); });
+  if ($('#allowAdd')) {
+    $('#allowAdd').checked = !!G.allowAdd;
+    $('#allowAdd').addEventListener('change', function () {
+      G.allowAdd = $('#allowAdd').checked; save(); broadcast(true);
+    });
+  }
+  if ($('#btnRoomQ')) {
+    $('#btnRoomQ').addEventListener('click', function () {
+      $('#roomQList').classList.toggle('hidden');
+      renderLobby();
+    });
+  }
   $('#rounds').addEventListener('change', function () {
     G.totalRounds = parseInt($('#rounds').value, 10) || G.totalRounds || 8;
     save();
