@@ -67,7 +67,11 @@
     <div class="card stack">
       <div class="row between">
         <h2>Players <span class="muted" id="pcount">(0)</span></h2>
-        <button class="ghost mini" id="btnSettings">Settings</button>
+        <div class="row tight">
+          <span class="badge hidden" id="roomQBadge">🎤 <span id="roomQCount">0</span> from the room</span>
+          <button class="ghost mini" id="btnRoomQ">See them</button>
+          <button class="ghost mini" id="btnSettings">Settings</button>
+        </div>
       </div>
       <div class="players" id="lobbyPlayers"></div>
       <p class="tiny" id="lobbyHint">Waiting for people to join…</p>
@@ -76,6 +80,7 @@
         <div class="row tight grow" id="hostPickBtns"></div>
       </div>
       <p class="tiny" id="hostPickHint"></p>
+      <div class="qlist hidden" id="roomQList"></div>
       <button class="big" id="btnStart" disabled>Start game</button>
     </div>
 
@@ -108,6 +113,11 @@
         <div class="packs" id="packs"></div>
         <p class="tiny" id="qcount" style="margin-top:8px"></p>
       </div>
+      <div>
+        <label class="field" for="custom">Your own phrases (one per line: PHRASE: taboo one, taboo two, taboo three)</label>
+        <textarea id="custom" placeholder="ROAD TRIP: CAR, MUSIC, SNACKS&#10;GROUP CHAT: PHONE, TEXT, NOTIFICATION"></textarea>
+      </div>
+      <label class="row tiny" style="gap:7px"><input type="checkbox" id="allowAdd" checked> Let players add phrases from their phones</label>
       <p class="tiny">One player gives clues each round, in rotation — everyone else free-types guesses. Say part of the phrase or a banned word and the clue gets blocked before it ever reaches the room.</p>
     </div>
   </section>

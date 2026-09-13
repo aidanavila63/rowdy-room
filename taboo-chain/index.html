@@ -75,6 +75,19 @@
       <p id="waitMsg">Waiting for the host to start…</p>
       <div class="players" id="waitPlayers"></div>
     </div>
+
+    <div class="card stack hidden" id="addBox">
+      <div class="kicker">Write your own</div>
+      <p style="margin-top:2px">Add a phrase of your own — format: PHRASE: taboo one, taboo two, taboo three. It gets shuffled into tonight's game.</p>
+      <div class="row tight">
+        <input type="text" id="myQ" class="grow" maxlength="90" autocomplete="off"
+               placeholder="GAME NIGHT: CARDS, DICE, TEAMS" style="flex:1 1 180px">
+        <button id="btnAddQ">Add</button>
+      </div>
+      <div class="qlist" id="myQList"></div>
+      <p class="tiny" id="addHint"></p>
+    </div>
+
     <div class="card">
       <button class="ghost" id="btnLeave">Leave game</button>
     </div>
@@ -92,19 +105,19 @@
       <div id="tcGiverUI" class="hidden">
         <div class="tc-phrasebig" id="tcPhraseBig">Getting your phrase…</div>
         <div class="tc-taboolist" id="tcTabooList"></div>
-        <div class="tc-cluefeed" id="tcClueFeedGiver"></div>
+        <div class="tc-cluefeed" id="tcClueFeedGiver" aria-live="polite"></div>
         <div class="gb-input-row" style="display:flex;gap:10px;margin:10px 0">
-          <input type="text" id="tcClueIn" placeholder="Type a clue…" autocomplete="off" style="flex:1 1 auto;min-width:0">
+          <input type="text" id="tcClueIn" placeholder="Type a clue…" autocomplete="off" style="flex:1 1 auto;min-width:0" aria-label="Type a clue">
           <button id="btnClue" style="flex:none">Send</button>
         </div>
         <p class="tiny"><span id="cCorrect">0</span> / <span id="cTotal">0</span> have guessed it so far</p>
       </div>
 
       <div id="tcGuesserUI" class="hidden">
-        <div class="tc-cluefeed" id="tcClueFeedGuesser"></div>
+        <div class="tc-cluefeed" id="tcClueFeedGuesser" aria-live="polite"></div>
         <div id="tcGuessForm">
           <div class="gb-input-row" style="display:flex;gap:10px;margin:10px 0">
-            <input type="text" id="tcGuessIn" placeholder="Type your guess…" autocomplete="off" style="flex:1 1 auto;min-width:0">
+            <input type="text" id="tcGuessIn" placeholder="Type your guess…" autocomplete="off" style="flex:1 1 auto;min-width:0" aria-label="Your guess">
             <button id="btnGuess" style="flex:none">Guess</button>
           </div>
         </div>
